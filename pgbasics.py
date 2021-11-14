@@ -137,7 +137,7 @@ def two_pos_to_vel(pos, mouse, speed=1):
 
 def bar_rgb():
     """ RED, ORANGE, YELLOW, GREEN """
-    return (lerp(RED, ORANGE, 33) + lerp(ORANGE, YELLOW, 33) + lerp(YELLOW, LIGHT_GREEN, 34))
+    return (lerp(RED, ORANGE, 33) + lerp(ORANGE, YELLOW, 33) + lerp(YELLOW, LIGHT_GREEN, 33))
    
 
 def rand_rgb():
