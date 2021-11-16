@@ -376,7 +376,7 @@ class SmartSurface(pygame.Surface):
     
     def cblit(self, surf, pos, anchor="center"):
         rect = surf.get_rect()
-        setattr(rect, anchor, pos)
+        setattr(rect, anchor, pos if not isinstance(pos, pygame.Rect) else pos.rect.topleft)
         self.blit(surf, rect)
     
     def to_pil(self):
