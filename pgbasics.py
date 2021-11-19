@@ -359,10 +359,14 @@ class SmartSurface(pygame.Surface):
         return f"{type(self).__name__}(size={self.get_size()}, flags={hex(self.get_flags())})"
     
     def __reduce__(self):
-        return (str, (pygame.image.tostring(self, "RGBA"),))
+        return (str, (self._tostring,))
     
     def __deepcopy__(self, memo):
-        return pygame.image.tostring(self, "RGBA")
+        return self._tostring
+    
+    @property
+    def _tostring(self, mode="RGBA"):
+        return pygame.image.tostring(self, mode)
     
     @classmethod
     def from_surface(cls, surface):
@@ -376,7 +380,7 @@ class SmartSurface(pygame.Surface):
     
     def cblit(self, surf, pos, anchor="center"):
         rect = surf.get_rect()
-        setattr(rect, anchor, pos if not isinstance(pos, pygame.Rect) else pos.rect.topleft)
+        setattr(rect, anchor, pos if not isinstance(pos, pygame.Rect) else pos.topleft)
         self.blit(surf, rect)
     
     def to_pil(self):
