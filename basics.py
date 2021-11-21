@@ -576,6 +576,11 @@ class SmartOrderedDict:
     
     def values(self):
         return iter(self._values)
+        
+        
+class JavaScriptObject(dict):
+    def __getattr__(self, value):
+        return self[value]
 
         
 class PseudoRandomNumberGenerator:

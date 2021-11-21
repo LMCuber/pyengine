@@ -297,15 +297,15 @@ def img_mult(img, mult):
     return ret_img
 
 
-def swap_palette(surf, oldcolor, newcolor):
+def swap_palette(surf, old_color, new_color):
     img = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
     img.blit(surf, (0, 0))
     for y in range(img.get_height()):
         for x in range(img.get_width()):
             rgba = surf.get_at((x, y))
             color = rgba[:-1]
-            if color == oldcolor:
-                img.set_at((x, y), newcolor)
+            if color == old_color:
+                img.set_at((x, y), new_color)
     img = img.convert_alpha()
     return img
 
