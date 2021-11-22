@@ -1,6 +1,7 @@
 from .imports import *
 from translatepy.translators.google import GoogleTranslate as _TpyGoogleTranslate
 from googletrans import Translator as _GoogleGoogleTranslate
+import numpy as np
 import inspect
 import tkinter
 import sys
@@ -123,11 +124,7 @@ def find(iter, cond, default=None):
 
 def findi(iter, cond, default=None):
     return next((i for i, x in enumerate(iter) if cond(x)), default)
-
-
-def matrix(l, n):
-    return [l[i:i + n] for i in range(0, len(l), n)]
-
+    
     
 def flatten(oglist):
     flatlist = []
@@ -476,6 +473,9 @@ class SmartList(list):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
     
+    def matrix(self, dims=None):
+        return np.array(self).reshape(*(dims if dims is not None else [int(sqrt(len(self)))] * 2)).tolist()
+    
     def to_string(self):
         return "".join(self)
     
@@ -520,8 +520,8 @@ class SmartList(list):
         for elem in freqs:
             if freqs[elem] == max_:
                 return elem
-            
-            
+                
+                
 class SmartOrderedDict:
     def __init__(self, dict_=None, **kwargs):
         dict_ = dict_ if dict_ is not None else {}
