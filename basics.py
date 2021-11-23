@@ -24,7 +24,11 @@ pritn = print  # because I always mess it up when typing fast
 prrint = print # because I always mess it up when typing fast
 
 
-# functions    
+# functions
+def notepadopen(filepath):
+    os.system(f"notepad {filepath}")
+    
+
 def ndget(nd, keys):
     for e in keys:
         nd = nd[e]
