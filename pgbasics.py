@@ -121,7 +121,7 @@ def get_volume():
 def two_pos_to_angle(pos, mouse):
     dy = mouse[1] - pos[1]
     dx = mouse[0] - pos[0]
-    angle = math.atan2(dy, dx)
+    angle = math.atan(dy / dx)
     return angle
     
     
