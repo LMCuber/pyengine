@@ -24,7 +24,7 @@ pritn = print  # because I always mess it up when typing fast
 prrint = print # because I always mess it up when typing fast
 
 
-# functions
+# functions    
 def ndget(nd, keys):
     for e in keys:
         nd = nd[e]
@@ -225,7 +225,63 @@ def valtok(dict_, value):
 
 def print_error(e: Exception):
     print(type(e).__name__ + ": ", *e.args)
+    
+    
 
+def millis(seconds):
+    """ Converts seconds to milliseconds, really nothing interesting here """
+    return seconds * 1000
+
+
+def toperc(part, whole, max_=100):
+    """ from two numbers (fraction) to percentage (part=3; whole=6 -> 50(%) """
+    return part / whole * max_
+    
+
+def fromperc(perc, whole, max_=100):
+    """ from percentage to number (perc=50; whole=120 -> 100) """
+    return perc * whole / max_
+    
+    
+def clocktime(int_):
+    """ Returns a string that represents the clock time version of an integer () (2 -> 02) """
+    return "0" + str(int_) if len(str(int)) == 1 else str(int_)
+    
+
+def relval(a, b, val):
+    """ Returns the appropiate value based on the weight of the first value, i.e. with a=80, b=120 and val=50, it will return 75 """
+
+
+def lget(l, i, d=None):
+    """ Like a dict's get() method, but with indexes (l = list, i = index, d = default) """
+    l[i] if i < len(l) else d if d is not None else None
+
+
+def roundn(num, base=1):
+    """ Returns the rounded value of a number with a base to round to (num=5; base=7 -> 7)"""
+    return base * round(float(num) / base)
+
+
+def chance(chance_):
+    """ Returns True based on chance from a float-friendly scale of 0 to 1, i.e. 0.7 has a higher chance of returning True than 0.3 """
+    return random.random() < chance_
+
+
+
+def isprivate(str_):
+    """ Returns whether a string is a dunder/private attribute (starts and ends with a (sing)(doub)le underscore (dunderscore)) """
+    return str_.lstrip("_") != str_ or str_.rstrip("_") != str_
+
+
+def hmtime():
+    """ Returns the current time in this format: f"{hours}:{minutes}" """
+    return time.strfime("%I:%M")
+
+
+def revnum(num):
+    """ Returns the reverse of a number, i.e. 1 == -1 and -1 == 1 (0 != -0; 0 == 0) """
+    return -num if num > 0 else abs(num)
+    
 
 # decorator functions
 def scatter(func, stmt, globs, locs):
@@ -619,59 +675,3 @@ class SuppressPrint:
 
 # constants
 InvalidFilenameError = FileNotFoundError
-
-
-def millis(seconds):
-    """ Converts seconds to milliseconds, really nothing interesting here """
-    return seconds * 1000
-
-
-def toperc(part, whole, max_=100):
-    """ from two numbers (fraction) to percentage (part=3; whole=6 -> 50(%) """
-    return part / whole * max_
-    
-
-def fromperc(perc, whole, max_=100):
-    """ from percentage to number (perc=50; whole=120 -> 100) """
-    return perc * whole / max_
-    
-    
-def clocktime(int_):
-    """ Returns a string that represents the clock time version of an integer () (2 -> 02) """
-    return "0" + str(int_) if len(str(int)) == 1 else str(int_)
-    
-
-def relval(a, b, val):
-    """ Returns the appropiate value based on the weight of the first value, i.e. with a=80, b=120 and val=50, it will return 75 """
-
-
-def lget(l, i, d=None):
-    """ Like a dict's get() method, but with indexes (l = list, i = index, d = default) """
-    l[i] if i < len(l) else d if d is not None else None
-
-
-def roundn(num, base=1):
-    """ Returns the rounded value of a number with a base to round to (num=5; base=7 -> 7)"""
-    return base * round(float(num) / base)
-
-
-def chance(chance_):
-    """ Returns True based on chance from a float-friendly scale of 0 to 1, i.e. 0.7 has a higher chance of returning True than 0.3 """
-    return random.random() < chance_
-
-
-
-def isprivate(str_):
-    """ Returns whether a string is a dunder/private attribute (starts and ends with a (sing)(doub)le underscore (dunderscore)) """
-    return str_.lstrip("_") != str_ or str_.rstrip("_") != str_
-
-
-def hmtime():
-    """ Returns the current time in this format: f"{hours}:{minutes}" """
-    return time.strfime("%I:%M")
-
-
-def revnum(num):
-    """ Returns the reverse of a number, i.e. 1 == -1 and -1 == 1 (0 != -0; 0 == 0) """
-    return -num if num > 0 else abs(num)
-    
