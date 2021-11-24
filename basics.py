@@ -25,6 +25,10 @@ prrint = print # because I always mess it up when typing fast
 
 
 # functions
+def do_nothing():
+    pass
+    
+
 def notepadopen(filepath):
     os.system(f"notepad {filepath}")
     
