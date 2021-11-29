@@ -25,6 +25,27 @@ prrint = print # because I always mess it up when typing fast
 
 
 # functions
+def pascal(rows):
+    if rows == 1:
+        return [[1]]
+    triangle = [[1], [1, 1]]
+    row = [1, 1]
+    for i in range(2, rows):
+        row = [1] + [sum(column) for column in zip(row[1:], row)] + [1]
+        triangle.append(row)
+    return triangle
+    
+    
+def pyramid(height, item=0):
+    ret = []
+    for _ in range(height):
+        try:
+            ret.append([item] * (len(ret[-1]) + 1))
+        except IndexError:
+            ret.append([item])
+    return ret
+    
+    
 def do_nothing():
     pass
     
@@ -294,7 +315,7 @@ def revnum(num):
 # decorator functions
 def scatter(func, stmt, globs, locs):
     while (placeholder := token()) in inspect.getsource(func):
-        pass
+        do_nothing()
     lines = inspect.getsourcelines(func)[0]
     additions = [placeholder] * len(lines)
     code = list(sum(zip(lines, additions), ()))
