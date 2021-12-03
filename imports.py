@@ -1,4 +1,4 @@
-from math import floor, ceil, sqrt, hypot, sin, cos, atan, atan2, degrees, radians
+from math import floor, ceil, sqrt, hypot, sin, cos, tan, atan, atan2, degrees, radians
 from types import SimpleNamespace as EmptyObject, FunctionType
 from contextlib import suppress, redirect_stdout, nullcontext
 from random import randint as rand, uniform as randf

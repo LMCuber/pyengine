@@ -58,7 +58,13 @@ INF = "\u221e"  # infinity symbol (unicode)
 
 
 # surfaces
-def triangle(height=10, color=BLACK):
+def circle(radius, color=BLACK):
+    ret = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
+    #pygame.gfxdraw.filled_circle(ret, radius, radius, radius, color)
+    pygame.draw.circle(ret, color, (radius, radius), radius)
+    return ret
+
+def triangle(height, color=BLACK):
     ret = pygame.Surface((height, height), pygame.SRCALPHA)
     w, h = ret.get_size()
     pygame.draw.polygon(ret, color, ((0, h), (w / 2, 0), (w, h)))
