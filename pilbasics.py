@@ -35,7 +35,7 @@ def pil_blur(pil_img, radius=2):
     return pil_img.filter(PIL.ImageFilter.GaussianBlur(radius=radius))
 
 
-def pil2pg(pil_img):
+def pil_to_pg(pil_img):
     data = pil_img.tobytes()
     size = pil_img.size
     mode = pil_img.mode

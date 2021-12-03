@@ -1,10 +1,10 @@
 from .imports import *
 from .basics import *
-from .pilbasics import pil2pg
+from .pilbasics import pil_to_pg
 import pygame
 from pygame.locals import *
 import pygame.gfxdraw
-from colorsys import rgb_to_hsv, hsv_to_rgb
+from colorsys import rgb_to_hsv, hsv_to_rgb, rgb_to_hls, hls_to_rgb
 
 
 pygame.init()
@@ -36,16 +36,17 @@ DARK_GREEN =    (  0,  70,   0)
 DARKISH_GREEN = (  0,  120,  0)
 LIGHT_GREEN =   (  0, 255,   0)
 MINT =          (186, 227, 209)
-POWDER_BLUE =   (176, 224, 230)
 YELLOW =        (255, 255,   0)
 YELLOW_ORANGE = (255, 174,  66)
 SKIN_COLOR =    (255, 219, 172)
 GOLD_YELLOW =   (255, 214,   0)
+POWDER_BLUE =   (176, 224, 230)
 WATER_BLUE =    (  0, 191, 255)
 SKY_BLUE =      (220, 248, 255)
 LIGHT_BLUE =    (137, 209, 254)
 SMOKE_BLUE =    (154, 203, 255)
 DARK_BLUE =     (  0,   0,  50)
+PURPLE =        (153,  50, 204)
 ORANGE =        (255,  94,  19)
 BROWN =         (125,  70,   0)
 DARK_BROWN =    ( 87,  45,   7)
@@ -260,11 +261,11 @@ def invert_rgb(rgb):
     return [255 - rgb for color in rgb]
     
 
-def pg2pil(pg_img):
+def pg_to_pil(pg_img):
     return PIL.Image.frombytes("RGBA", pg_img.get_size(), pygame.image.tostring(pg_img, "RGBA"))
 
 
-def pg_rect2pil(pg_rect):
+def pg_rect_to_pil(pg_rect):
     return (pg_rect[0], pg_rect[1], pg_rect[0] + pg_rect[2], pg_rect[1] + pg_rect[3])
 
 
@@ -390,6 +391,10 @@ class SmartSurface(pygame.Surface):
 class SmartGroup(pygame.sprite.Group):
     def __init__(self, *args, **kwargs):
         super().__init__(self, *args, **kwargs)
+    
+    def function(self):
+        for spr in self:
+            spr.function()
      
     def index(self, val):
         return self.sprites().index(val)
@@ -455,44 +460,3 @@ class Font:
         rect = template.get_rect()
         setattr(rect, anchor, pos)
         surf.blit(template, rect)
-
-
-class Particle:
-    def __init__(self, surf, pos, shape, dis=1000, vel=None, rot=None, color=BLACK):
-        self.surf = surf
-        if "rect" in shape:
-            size = [int(s) for s in shape.lstrip("rect/").split("-")]
-            self.image = pygame.Surface([s for s in size])
-        elif "circle" in shape:
-            size = [int(s) for s in shape.lstrip("circle/").split("-")]
-            self.image = pygame.Surface([s for s in size], pygame.SRCALPHA)
-            pygame.draw.circle(self.image, color, self.image.get_width() / 2, self.image.get_width() / 2)
-        self.og_img = self.image.copy()
-        self.rect = self.image.get_rect(center=pos)
-        self.angle = 0
-        self.rot = rot
-        self.vel = vel
-        self.dis = dis
-        self.start = pygame.time.get_ticks()
-        _mod.particles.append(self)
-
-    def update(self):
-        self.surf.blit(self.image, self.rect)
-        self.disappear()
-        self.move()
-        #self.rotate()
-    
-    def move(self):
-        if self.vel:
-            self.rect.x += self.vel[0]
-            self.rect.y += self.vel[1]
-    
-    def rotate(self):
-        if self.rot:
-            self.image = pygame.transform.rotozoom(self.og_img, self.angle, 1)
-            self.angle += self.rot
-            self.rect = self.image.get_rect()
-
-    def disappear(self):
-        if pygame.time.get_ticks() - self.start >= self.dis:
-            _mod.particles.remove(self)

@@ -76,13 +76,7 @@ def draw_and_update_widgets():
         else:
             if widget.visible_when():
                 widget.draw()
-
-
-def draw_and_update_particles():
-    for particle in iter_particles():
-        with suppress(AttributeError):
-            particle.update()
-
+                
 
 def process_widget_events(event, mouse):
     for widget in iter_widgets():
