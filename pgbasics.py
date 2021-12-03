@@ -132,7 +132,7 @@ def two_pos_to_angle(pos, mouse):
     return angle
     
     
-def angle_to_vel(angle, speed):
+def angle_to_vel(angle, speed=1):
     vx = cos(angle) * speed
     vy = sin(angle) * speed
     return vx, vy
