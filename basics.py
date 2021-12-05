@@ -71,12 +71,6 @@ def sassert(cond):
 
 def create_exception(name, *parents):
     return type(name, tuple([*parents]), {})
-
-
-def snappetimg(width=500):
-    url = r"https://img.snappet.org/sql/{seed}.png?mode=max&w={width}"
-    url = url.replace("{seed}", str(rand(47, 222219))).replace("{width}", str(width))
-    return PIL.Image.open(io.BytesIO(requests.get(url).content))
     
 
 def pin():

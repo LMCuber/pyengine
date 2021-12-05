@@ -2,6 +2,7 @@ import PIL.Image
 import PIL.ImageFilter
 import PIL.ImageColor
 import PIL.ImageDraw
+import PIL.ImageEnhance
 import pygame
 
 
