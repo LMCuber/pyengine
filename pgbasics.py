@@ -102,9 +102,9 @@ def rot_center(img, angle, x, y):
     
     
 def crop_transparent(pg_img):
-    pil_img = pg2pil(pg_img)
+    pil_img = pg_to_pil(pg_img)
     pil_img = pil_img.crop(pil_img.getbbox())
-    pg_img = pil2pg(pil_img)
+    pg_img = pil_to_pg(pil_img)
     return pg_img
 
 
@@ -391,7 +391,7 @@ class SmartSurface(pygame.Surface):
         self.blit(surf, rect)
     
     def to_pil(self):
-        return pg2pil(self)
+        return pg_to_pil(self)
     
 
 class SmartGroup(pygame.sprite.Group):
