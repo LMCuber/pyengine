@@ -28,7 +28,7 @@ def update_button_behavior(itr):
                 widget.image.set_alpha(150)
             else:
                 widget.image.set_alpha(255)
-            
+
 
 def befriend_iterable(itr):
     for focused_widget in itr:
@@ -76,7 +76,7 @@ def draw_and_update_widgets():
         else:
             if widget.visible_when():
                 widget.draw()
-                
+
 
 def process_widget_events(event, mouse):
     for widget in iter_widgets():
@@ -134,7 +134,7 @@ class _Widget:
         setattr(self.rect, anchor, pos)
         Thread(target=self.zoom, args=["in"]).start()
         self.startup_command()
-    
+
     def _exec_command(self, command, after=None, *args, **kwargs):
         if callable(command):
             command(*args, **kwargs)
@@ -143,12 +143,12 @@ class _Widget:
         elif after == "kill":
             self._kill()
 
-    
+
     def set_pos(self, pos, anchor="center"):
         setattr(self.rect, anchor, pos)
         self.og_pos = pos
         self.og_anchor = anchor
-        
+
     def replace_og(self, image):
         self.og_img = image.copy()
         self.og_size = self.og_img.get_size()
@@ -159,7 +159,7 @@ class _Widget:
                 if wsc[0] is self.child:
                     wsc[1]()
                     break
-    
+
     def enable(self):
         Thread(target=self.zoom, args=["in"]).start()
         self.disabled = False
@@ -167,7 +167,7 @@ class _Widget:
 
     def disable(self):
         Thread(target=self.zoom, args=["out"]).start()
-        
+
     def zoom(self, type_):
         if type_ == "in":
             for i in range(20):
@@ -191,13 +191,13 @@ class _Widget:
 
     def draw(self):
         self.surf.blit(self.image, self.rect)
-                    
+
     def add_friend(self, fr):
         self.friends.append(fr)
         fr.friends.append(self)
         self.friends = list(set(self.friends))
         fr.friends = list(set(fr.friends))
-    
+
     def _kill(self):
         with suppress(ValueError):
             _mod.widgets.remove(self)
@@ -205,16 +205,16 @@ class _Widget:
     def destroy(self):
         Thread(target=self.zoom, args=["out destroy"]).start()
         self._kill()
-        
-        
+
+
 class ButtonBehavior:
     def update(self):
         if self.rect.collidepoint(pygame.mouse.get_pos()):
             self.image.set_alpha(150)
         else:
             self.image.set_alpha(255)
-        
-        
+
+
 class _Overwriteable:
     def overwrite(self, text):
         w, h = [5 + size + 5 for size in self.font.size(str(text))]
@@ -231,12 +231,13 @@ class BaseButton:
 
 class Button(_Widget, BaseButton):
     def __init__(self, surf, text, command, width=None, height=None, pos=_DEF_WIDGET_POS, text_color=BLACK, bg_color=LIGHT_GRAY, anchor="center", exit_command=None, visible_when=None, font=None, friends=None, click_effect=False, disabled=False, disable_type=False, template=None, add=True, special_flags=None, *args, **kwargs):
+        self.text = text
         self.font = font if font is not None else _eng.def_fonts[20]
         self.bg_color = bg_color
         self.click_effect = click_effect
         w = width if width is not None else self.font.size(text)[0] + 5
         h = height if height is not None else self.font.size(text)[1] + 5
-        self.image = pygame.Surface((w, h))
+        self.image = pygame.Surface((w, h)).convert_alpha()
         self.image.fill(bg_color)
         write(self.image, "center", text, self.font, text_color, *[s / 2 for s in self.image.get_size()])
         self.rect = self.image.get_rect()
@@ -250,7 +251,7 @@ class Button(_Widget, BaseButton):
                 self.command()
                 if self.click_effect:
                     Thread(target=self.zoom, args=["out"]).start()
-    
+
 
 class ToggleButton(_Widget, BaseButton, _Overwriteable):
     def __init__(self, surf, cycles, pos=_DEF_WIDGET_POS, command=None, bg_color=LIGHT_GRAY, anchor="center", exit_command=None, visible_when=None, font=None, friends=None, disabled=False, disable_type=False, template=None, add=True, special_flags=None, *args, **kwargs):
@@ -260,12 +261,12 @@ class ToggleButton(_Widget, BaseButton, _Overwriteable):
         self.cycles = cycles
         self.cycle = 0
         w, h = [5 + size + 5 for size in self.font.size(str(self.cycles[self.cycle]))]
-        self.image = pygame.Surface((w, h))
+        self.image = pygame.Surface((w, h)).convert_alpha()
         self.image.fill(self.bg_color)
         write(self.image, "topleft", self.cycles[self.cycle], self.font, BLACK, 5, 5)
         self.rect = self.image.get_rect()
         super().__init__(self.image, surf, visible_when, friends, pos, anchor, exit_command, disabled, disable_type, template, type(self), add, special_flags)
-    
+
     def process_event(self, event):
         if is_left_click(event):
             mouse = pygame.mouse.get_pos()
@@ -283,12 +284,12 @@ class Label(_Widget, _Overwriteable):
         self.font = font if font is not None else _eng.def_fonts[20]
         self.bg_color = bg_color
         w, h = [s + 5 for s in self.font.size(str(text))]
-        self.image = pygame.Surface((w, h))
+        self.image = pygame.Surface((w, h)).convert_alpha()
         self.image.fill(bg_color)
         write(self.image, "center", text, self.font, BLACK, *[s / 2 for s in self.image.get_size()])
         self.rect = self.image.get_rect()
         super().__init__(self.image, surf, visible_when, friends, pos, anchor, exit_command, disabled, disable_type, template, type(self), add, special_flags)
-        
+
 
 class Entry(_Widget):
     def __init__(self, surf, title, command, max_chars=None, input_required=False, focus=True, pos=_DEF_WIDGET_POS, start_command=None, anchor="center", default_text=None, exit_command=None, visible_when=None, font=None, friends=None, error_command=None, disabled=False, disable_type=False, template=None, add=True, special_flags=None, *args, **kwargs):
@@ -296,7 +297,7 @@ class Entry(_Widget):
         self.max_chars = max_chars if max_chars is not None else float("inf")
         self.input_required = input_required
         self.text_width = self.font.size(title)[0] + 10
-        self.image = pygame.Surface((self.text_width, 60))
+        self.image = pygame.Surface((self.text_width, 60)).convert_alpha()
         self.image.fill(LIGHT_GRAY)
         under = pygame.Surface((self.text_width, 30))
         under.fill(WHITE)
@@ -348,7 +349,7 @@ class Entry(_Widget):
                                     self.inc_output(keyboard_map.get(key, key.capitalize()))
                                 else:
                                     self.inc_output(key)
-                                    
+
         if is_left_click(event):
             mouse = pygame.mouse.get_pos()
             if self.rect.collidepoint(mouse):
@@ -356,12 +357,12 @@ class Entry(_Widget):
                     self.focused = True
                     for friend in self.friends:
                         friend.focused = False
-                        
+
     def inc_output(self, what):
         self.output += what
         self.on = True
         self.last_on = ticks()
-        
+
     def update(self):
         w, h = self.image.get_width(), self.image.get_height()
         self.image.fill(WHITE, (0, h / 2, w, h / 2))
@@ -381,7 +382,7 @@ class MessageboxOkCancel(_Widget):
         # base
         self.font = font if font is not None else _eng.def_fonts[20]
         self.text_width = self.font.size(text)[0] + 10
-        self.image = pygame.Surface((self.text_width, 60))
+        self.image = pygame.Surface((self.text_width, 60)).convert_alpha()
         self.image.fill(LIGHT_GRAY)
         under = pygame.Surface((self.text_width, 30))
         under.fill(WHITE)
@@ -403,11 +404,11 @@ class MessageboxOkCancel(_Widget):
         # super
         super().__init__(self.image, surf, visible_when, friends, pos, anchor, exit_command, disabled, disable_type, template, type(self), add, special_flags)
 
-    def process_event(self, event): 
+    def process_event(self, event):
         if event.type == pygame.KEYDOWN:
             if event.key == K_ENTER:
                 self._exec_command(self.commands["ok"], "out destroy")
-                
+
         elif event.type == pygame.MOUSEBUTTONDOWN:
             mouse = pygame.mouse.get_pos()
             if is_left_click(event):
@@ -420,7 +421,7 @@ class MessageboxError(_Widget):
     def __init__(self, surf, text, pos=_DEF_WIDGET_POS, anchor="center", exit_command=None, visible_when=None, font=None, friends=None, disabled=False, disable_type=False, template=None, add=True, special_flags=None, *args, **kwargs):
         self.font = font if font is not None else _eng.def_fonts[20]
         self.text_width = self.font.size(text)[0] + 10
-        self.image = pygame.Surface((self.text_width, 60))
+        self.image = pygame.Surface((self.text_width, 60)).convert_alpha()
         self.image.fill(LIGHT_GRAY)
         under = pygame.Surface((self.text_width, 30))
         under.fill(WHITE)
@@ -435,11 +436,11 @@ class MessageboxError(_Widget):
         self.rects["ok"] = pygame.Rect(self.rect.left + self.text_width // 2, self.rect.top + 30, self.text_width, 60)
         super().__init__(self.image, surf, visible_when, friends, pos, anchor, exit_command, disabled, disable_type, template, type(self), add, special_flags)
 
-    def process_event(self, event): 
+    def process_event(self, event):
         if event.type == pygame.KEYDOWN:
             if event.key == K_ENTER:
                 Thread(target=self.zoom, args=["out destroy"]).start()
-                
+
         elif event.type == pygame.MOUSEBUTTONDOWN:
             mouse = pygame.mouse.get_pos()
             if is_left_click(event):
@@ -452,7 +453,7 @@ class Checkbox(_Widget):
         self.font = font if font is not None else _eng.def_fonts[20]
         w = width if width is not None else self.font.size(text)[0]
         h = height if height is not None else self.font.size(text)[1]
-        self.image = pygame.Surface((30 + 5 + w + 5, 5 + h + 5))
+        self.image = pygame.Surface((30 + 5 + w + 5, 5 + h + 5)).convert_alpha()
         self.image.fill(LIGHT_GRAY)
         write(self.image, "topleft", text, self.font, BLACK, 30, 5)
         self.box = pygame.Surface((h - 5, h - 5))
@@ -466,7 +467,7 @@ class Checkbox(_Widget):
         self.uncheck_command = uncheck_command
         self.check = get_icon("check", (h - 5, h - 5))
         super().__init__(self.image, surf, visible_when, friends, pos, anchor, exit_command, disabled, disable_type, template, type(self), add, special_flags)
-    
+
     def process_event(self, event):
         if is_left_click(event):
             mouse = pygame.mouse.get_pos()
@@ -476,7 +477,7 @@ class Checkbox(_Widget):
                     self._exec_command(self.check_command)
                 elif not self.checked and self.uncheck_command:
                     self._exec_command(self.uncheck_command)
-    
+
     def update(self):
         blitx, blity = 5, self.image.get_height() / 2 - self.box.get_height() / 2
         self.image.blit(self.box, (blitx, blity))
@@ -495,7 +496,7 @@ class Slider(_Widget):
         self.text = text
         fs = self.font.size(text)
         daw_ = 40
-        self.image = pygame.Surface((5 + fs[0] + daw_, 5 + fs[1] + 5) if height is None else (5 + fs[0] + daw_, height))
+        self.image = pygame.Surface((5 + fs[0] + daw_, 5 + fs[1] + 5) if height is None else (5 + fs[0] + daw_, height)).convert_alpha()
         self.color = color
         self.image.fill(color)
         self.rect = self.image.get_rect()
@@ -506,10 +507,10 @@ class Slider(_Widget):
         self.mult = self.range / (len(self.values) - 1)
         self.pressed = False
         super().__init__(self.image, surf, visible_when, friends, pos, anchor, exit_command, disabled, disable_type, template, type(self), add, special_flags)
-    
+
     def in_area(self):
         return pygame.mouse.get_pressed()[0] and 5 <= self.mouse[0] <= self.rect.width - 5 and 8 <= self.mouse[1] <= self.rect.height - 8
-    
+
     def process_event(self, event):
         prev_value = self.value
         if is_left_click(event):
@@ -545,4 +546,3 @@ class Slider(_Widget):
             write(self.image, "topleft", self.text, self.font, BLACK, 5, 5)
             write(self.image, "topright", self.value, self.font, BLACK, self.image.get_width() - 5, 5)
             self.image.blit(self.slider_img, self.slider_rect)
-            

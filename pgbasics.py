@@ -23,6 +23,7 @@ is_left_click = lambda event: event.type == pygame.MOUSEBUTTONDOWN and event.but
 
 # colors
 BLACK =         (  0,   0,   0)
+BLAC =          (  1,   1,   1)
 WHITE =         (255, 255, 255)
 LIGHT_GRAY =    (180, 180, 180)
 GRAY =          (120, 120, 120)
@@ -75,17 +76,17 @@ def aaellipse(width, height, color=BLACK):
     ret = pygame.Surface((width + 1, height + 1), pygame.SRCALPHA)
     pygame.gfxdraw.aaellipse(ret, width // 2, height // 2, width // 2, height // 2, color)
     return ret
-    
+
 
 # functions
 def rgb2hex(rgb):
     return "#{0:02x}{1:02x}{2:02x}".format(*rgb)
-    
+
 
 def hex2rgb(hex_):
     return tuple(int(hex_.removeprefix("#")[i:i + 2], 16) for i in (0, 2, 4))
-    
-    
+
+
 def contrast_color(rgb):
     return tuple(255 - c for c in rgb)
 
@@ -99,8 +100,8 @@ def rot_center(img, angle, x, y):
     rot_img = rotozoom(img, angle, 1)
     new_rect = rot_img.get_rect(center=img.get_rect(center=(x, y)).center)
     return rot_img, new_rect
-    
-    
+
+
 def crop_transparent(pg_img):
     pil_img = pg_to_pil(pg_img)
     pil_img = pil_img.crop(pil_img.getbbox())
@@ -130,14 +131,14 @@ def two_pos_to_angle(pos, mouse):
     dx = mouse[0] - pos[0]
     angle = math.atan2(dy, dx)
     return angle
-    
-    
+
+
 def angle_to_vel(angle, speed=1):
     vx = cos(angle) * speed
     vy = sin(angle) * speed
     return vx, vy
-    
-    
+
+
 def two_pos_to_vel(pos, mouse, speed=1):
     return angle_to_vel(two_pos_to_angle(pos, mouse), speed)
 
@@ -145,7 +146,7 @@ def two_pos_to_vel(pos, mouse, speed=1):
 def bar_rgb():
     """ RED, ORANGE, YELLOW, GREEN """
     return (lerp(RED, ORANGE, 33) + lerp(ORANGE, YELLOW, 33) + lerp(YELLOW, LIGHT_GREEN, 33))
-   
+
 
 def rand_rgb():
     return tuple(rand(0, 255) for _ in range(3))
@@ -202,14 +203,14 @@ def imgload(*path_, alpha=True, colorkey=None, frames=None, frame_pause=0, scale
     elif isinstance(ret, pygame.Surface):
         ret = scalex(ret.convert_alpha() if alpha else ret.convert(), scale)
     return ret
-    
-    
+
+
 def off_screen(obj, w, h):
     if obj.rect.left >= w or obj.rect.right <= 0 or obj.rect.top >= h or obj.rect.bottom <= 0:
         return True
     else:
         return False
-        
+
 
 def lerp(start, end, amount):
     s = pygame.Color(start)
@@ -265,7 +266,7 @@ def fade_out(spr, amount=1, after_func=None):
 
 def invert_rgb(rgb):
     return [255 - rgb for color in rgb]
-    
+
 
 def pg_to_pil(pg_img):
     return PIL.Image.frombytes("RGBA", pg_img.get_size(), pygame.image.tostring(pg_img, "RGBA"))
@@ -320,8 +321,8 @@ def swap_palette(surf, old_color, new_color):
 def hide_cursor(w, h):
     #3pygame.mouse.set_cursor((w, h), (0, 0), (0, 0, 0, 0, 0, 0, 0, 0), (0, 0, 0, 0, 0, 0, 0, 0))
     pygame.cursor.set_visible(False)
-    
-    
+
+
 # decorator functions
 def depr_loading(func, window, font, exit_command=None):
     class T:
@@ -338,73 +339,79 @@ def depr_loading(func, window, font, exit_command=None):
         to.t = start_thread(func, args=args, kwargs=kwargs)
         start_thread(load)
     return wrapper
-    
+
 
 # classes
 class _Enter:
     def __eq__(self, other):
         return other in (pygame.K_RETURN, pygame.K_KP_ENTER)
-        
-        
+
+
 class _Shift:
     def __eq__(self, other):
         return other in (1, 8192)
-    
-    
+
+
 class _Control:
     def __eq__(self, other):
         return other in (64, 8256)
-        
-        
+
+
+class _Command:
+    def __eq__(self, other):
+        return other == 1073742051
+
+
 K_ENTER = _Enter()
 K_SHIFT = _Shift()
 K_CTRL = _Control()
+K_COMMAND = _Command()
 
 
 class SmartSurface(pygame.Surface):
     def __repr__(self):
         return f"{type(self).__name__}(size={self.get_size()}, flags={hex(self.get_flags())})"
-    
+
     def __reduce__(self):
         return (str, (self._tostring,))
-    
+
     def __deepcopy__(self, memo):
         return self._tostring
-    
+
     @property
     def _tostring(self, mode="RGBA"):
         return pygame.image.tostring(self, mode)
-    
+
     @classmethod
     def from_surface(cls, surface):
         ret = cls(surface.get_size(), pygame.SRCALPHA)
         ret.blit(surface, (0, 0))
         return ret
-        
+
     @classmethod
     def from_string(cls, string, size, format):
         return cls.from_surface(pygame.image.fromstring(string, size, format))
-    
+
     def cblit(self, surf, pos, anchor="center"):
         rect = surf.get_rect()
         setattr(rect, anchor, pos if not isinstance(pos, pygame.Rect) else pos.topleft)
         self.blit(surf, rect)
-    
+
     def to_pil(self):
         return pg_to_pil(self)
-    
+
 
 class SmartGroup(pygame.sprite.Group):
     def __init__(self, *args, **kwargs):
         super().__init__(self, *args, **kwargs)
-    
+
     def function(self):
         for spr in self:
             spr.function()
-     
+
     def index(self, val):
         return self.sprites().index(val)
-    
+
     def function(self):
         for spr in self:
             try:
@@ -412,7 +419,7 @@ class SmartGroup(pygame.sprite.Group):
                 spr.update()
             except AttributeError:
                 raise AttributeError(f"All sprites in the group must have a \"draw()\" and \"update()\" method. Object {spr} did not have that/those method(s).")
-                
+
 
 class BaseSprite:
     def __init__(self, group):
@@ -442,7 +449,7 @@ class Font:
                 index += 1
             else:
                 right += 1
-    
+
     def render(self, surf, string, pos, anchor="center"):
         spacing = 3
         size_x = 0

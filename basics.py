@@ -25,6 +25,15 @@ prrint = print # because I always mess it up when typing fast
 
 
 # functions
+def choose_file(title, file_types="all"):
+    kw = {"filetypes": file_types} if file_types != "all" else {}
+    if Platform.os != "Darwin":
+        p = tkinter.filedialog.askopenfilename(title=title, **kw)
+        return p
+    else:
+        return NotImplemented
+
+
 def pascal(rows):
     if rows == 1:
         return [[1]]
