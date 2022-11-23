@@ -218,7 +218,7 @@ class ButtonBehavior:
 class _Overwriteable:
     def overwrite(self, text):
         w, h = [5 + size + 5 for size in self.font.size(str(text))]
-        self.image = pygame.Surface((w, h))
+        self.image = pygame.Surface((w, h)).convert_alpha()
         self.image.fill(self.bg_color)
         write(self.image, "center", text, self.font, BLACK, *[s / 2 for s in self.image.get_size()])
         self.replace_og(self.image)
@@ -280,13 +280,14 @@ class ToggleButton(_Widget, BaseButton, _Overwriteable):
 
 
 class Label(_Widget, _Overwriteable):
-    def __init__(self, surf, text, pos=_DEF_WIDGET_POS, bg_color=LIGHT_GRAY, anchor="center", exit_command=None, visible_when=None, font=None, friends=None, disabled=False, disable_type=False, template=None, add=True, special_flags=None, *args, **kwargs):
+    def __init__(self, surf, text, pos=_DEF_WIDGET_POS, bg_color=LIGHT_GRAY, text_color=BLACK, anchor="center", exit_command=None, visible_when=None, font=None, friends=None, disabled=False, disable_type=False, template=None, add=True, special_flags=None, *args, **kwargs):
+        self.text = text
         self.font = font if font is not None else _eng.def_fonts[20]
         self.bg_color = bg_color
-        w, h = [s + 5 for s in self.font.size(str(text))]
+        w, h = [s + 5 for s in self.font.size(text)]
         self.image = pygame.Surface((w, h)).convert_alpha()
         self.image.fill(bg_color)
-        write(self.image, "center", text, self.font, BLACK, *[s / 2 for s in self.image.get_size()])
+        write(self.image, "center", text, self.font, text_color, *[s / 2 for s in self.image.get_size()])
         self.rect = self.image.get_rect()
         super().__init__(self.image, surf, visible_when, friends, pos, anchor, exit_command, disabled, disable_type, template, type(self), add, special_flags)
 
