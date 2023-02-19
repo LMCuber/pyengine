@@ -169,7 +169,7 @@ class _Overwriteable:
 
 
 class Button(_Widget, _Overwriteable, ButtonBehavior):
-    def __init__(self, surf, text, command, width=None, height=None, pos=_DEF_WIDGET_POS, text_color=BLACK, bg_color=LIGHT_GRAY, anchor="center", exit_command=None, visible_when=None, font=None, tooltip_font=None, friends=None, click_effect=False, disabled=False, disable_type=False, template=None, add=True, special_flags=None, tooltip=None, appends=None, *args, **kwargs):
+    def __init__(self, surf, text, command, width=None, height=None, pos=_DEF_WIDGET_POS, text_color=BLACK, bg_color=WIDGET_GRAY, anchor="center", exit_command=None, visible_when=None, font=None, tooltip_font=None, friends=None, click_effect=False, disabled=False, disable_type=False, template=None, add=True, special_flags=None, tooltip=None, appends=None, *args, **kwargs):
         _Widget.__pre_init__(self, font, text)
         self.text = text
         self.bg_color = bg_color
@@ -188,7 +188,7 @@ class Button(_Widget, _Overwriteable, ButtonBehavior):
 
 
 class ToggleButton(_Widget, ButtonBehavior, _Overwriteable):
-    def __init__(self, surf, cycles, pos=_DEF_WIDGET_POS, command=None, width=None, height=None, bg_color=LIGHT_GRAY, text_color=BLACK, anchor="center", exit_command=None, visible_when=None, font=None, tooltip_font=None, friends=None, disabled=False, disable_type=False, template=None, add=True, special_flags=None, tooltip=None, appends=None, *args, **kwargs):
+    def __init__(self, surf, cycles, pos=_DEF_WIDGET_POS, command=None, width=None, height=None, bg_color=WIDGET_GRAY, text_color=BLACK, anchor="center", exit_command=None, visible_when=None, font=None, tooltip_font=None, friends=None, disabled=False, disable_type=False, template=None, add=True, special_flags=None, tooltip=None, appends=None, *args, **kwargs):
         _Widget.__pre_init__(self, font)
         self.command = command
         self.bg_color = bg_color
@@ -219,7 +219,7 @@ class ToggleButton(_Widget, ButtonBehavior, _Overwriteable):
 
 
 class Label(_Widget, _Overwriteable):
-    def __init__(self, surf, text, pos=_DEF_WIDGET_POS, width=None, height=None, bg_color=LIGHT_GRAY, text_color=BLACK, anchor="center", exit_command=None, visible_when=None, font=None, tooltip_font=None, friends=None, disabled=False, disable_type=False, template=None, add=True, special_flags=None, tooltip=None, appends=None, *args, **kwargs):
+    def __init__(self, surf, text, pos=_DEF_WIDGET_POS, width=None, height=None, bg_color=WIDGET_GRAY, text_color=BLACK, anchor="center", exit_command=None, visible_when=None, font=None, tooltip_font=None, friends=None, disabled=False, disable_type=False, template=None, add=True, special_flags=None, tooltip=None, appends=None, *args, **kwargs):
         _Widget.__pre_init__(self, font, text)
         self.bg_color = bg_color
         self.init_size(width, height, text)
@@ -232,6 +232,7 @@ class Label(_Widget, _Overwriteable):
 class Entry(_Widget):
     def __init__(self, surf, title, command, width=None, height=None, max_chars=None, input_required=False, focus=True, keyboard=True, keyboard_map=None, key_font=None, joystick=None, func_args=None, text_color=BLACK, pos=_DEF_WIDGET_POS, start_command=None, anchor="center", default_text=None, exit_command=None, visible_when=None, font=None, tooltip_font=None, friends=None, error_command=None, disabled=False, disable_type=False, template=None, add=True, special_flags=None, tooltip=None, appends=None, *args, **kwargs):
         _Widget.__pre_init__(self, font)
+        self.text = title
         self.max_chars = max_chars if max_chars is not None else float("inf")
         self.input_required = input_required
         self.keyboard = keyboard
@@ -243,7 +244,7 @@ class Entry(_Widget):
         self.text_color = text_color
         self.text_width = self.font.size(title)[0] + 10
         self.image = pygame.Surface((self.text_width, 60)).convert_alpha()
-        self.image.fill(LIGHT_GRAY)
+        self.image.fill(WIDGET_GRAY)
         under = pygame.Surface((self.text_width, 30))
         under.fill(WHITE)
         self.image.blit(under, (0, 30))
@@ -373,7 +374,7 @@ class Entry(_Widget):
         w, h = self.image.get_width(), self.image.get_height()
         self.image.fill(WHITE, (0, h / 2, w, h / 2))
         if self.default_text and self.output == "":
-            write(self.image, "midleft", self.default_text[0], self.default_text[1], LIGHT_GRAY, 5, self.image.get_height() / 4 * 3)
+            write(self.image, "midleft", self.default_text[0], self.default_text[1], WIDGET_GRAY, 5, self.image.get_height() / 4 * 3)
         elif self.on and self.focused:
             write(self.image, "midleft", self.output + "|", self.font, self.text_color, 5, self.image.get_height() / 4 * 3)
         else:
@@ -389,7 +390,7 @@ class MessageboxOkCancel(_Widget):
         _Widget.__pre_init__(self, font, text)
         self.text_width = self.font.size(self.text)[0] + 10
         self.image = pygame.Surface((self.text_width, 60)).convert_alpha()
-        self.image.fill(LIGHT_GRAY)
+        self.image.fill(WIDGET_GRAY)
         under = pygame.Surface((self.text_width, 30))
         under.fill(WHITE)
         self.image.blit(under, (0, 30))
@@ -429,7 +430,7 @@ class MessageboxOk(_Widget):
         _Widget.__pre_init__(self, font, text)
         self.text_width = self.font.size(self.text)[0] + 10
         self.image = pygame.Surface((self.text_width, 60)).convert_alpha()
-        self.image.fill(LIGHT_GRAY)
+        self.image.fill(WIDGET_GRAY)
         under = pygame.Surface((self.text_width, 30))
         under.fill(WHITE)
         self.image.blit(under, (0, 30))
@@ -464,7 +465,7 @@ class MessageboxError(_Widget):
         _Widget.__pre_init__(self, font, text)
         self.text_width = self.font.size(self.text)[0] + 10
         self.image = pygame.Surface((self.text_width, 60)).convert_alpha()
-        self.image.fill(LIGHT_GRAY)
+        self.image.fill(WIDGET_GRAY)
         under = pygame.Surface((self.text_width, 30))
         under.fill(WHITE)
         self.image.blit(under, (0, 30))
@@ -494,7 +495,7 @@ class Checkbox(_Widget, _Overwriteable):
     def __init__(self, surf, text, while_checked_command=None, check_command=None, uncheck_command=None, while_not_checked_command=None, width=None, height=None, checked=False, pos=_DEF_WIDGET_POS, anchor="center", exit_command=None, visible_when=None, font=None, tooltip_font=None, friends=None, disabled=False, disable_type=False, template=None, add=True, special_flags=None, tooltip=None, appends=None, *args, **kwargs):
         _Widget.__pre_init__(self, font)
         self.text = text
-        self.bg_color = LIGHT_GRAY
+        self.bg_color = WIDGET_GRAY
         w = width - 30 if width is not None else self.font.size(text)[0]
         h = height - 10 if height is not None else self.font.size(text)[1]
         self.image = pygame.Surface((30 + 5 + w + 5, 5 + h + 5)).convert_alpha()
@@ -542,7 +543,7 @@ class Checkbox(_Widget, _Overwriteable):
 
 
 class Slider(_Widget):
-    def __init__(self, surf, text, values, start=None, on_move_command=None, decimals=0, pos=_DEF_WIDGET_POS, anchor="center", color=LIGHT_GRAY, width=None, height=None, exit_command=None, visible_when=None, font=None, tooltip_font=None, friends=None, disabled=False, disable_type=False, template=None, add=True, special_flags=None, tooltip=None, appends=None, *args, **kwargs):
+    def __init__(self, surf, text, values, start=None, on_move_command=None, decimals=0, pos=_DEF_WIDGET_POS, anchor="center", color=WIDGET_GRAY, width=None, height=None, exit_command=None, visible_when=None, font=None, tooltip_font=None, friends=None, disabled=False, disable_type=False, template=None, add=True, special_flags=None, tooltip=None, appends=None, *args, **kwargs):
         _Widget.__pre_init__(self, font, text)
         self.on_move_command = on_move_command
         fs = self.font.size(text)
@@ -633,10 +634,10 @@ def update_and_poll_widgets():
     #     dest.blit(img, pos)
     ret += [[None] + x[0:2] for x in tooltip_data]
     return ret
-    # for cursor, cond in _eng.cursors:
-    #     if cond() and pygame.mouse.get_cursor() != cursor:
-    #         pygame.mouse.set_cursor(cursor)
-    #         break
+    for cursor, cond in _eng.cursors:
+        if cond() and pygame.mouse.get_cursor() != cursor:
+            pygame.mouse.set_cursor(cursor)
+            break
 
 
 def format_text(text):
@@ -731,10 +732,10 @@ def draw_and_update_widgets():
                         widget.last_hover = ticks()
     for img, pos, dest in tooltip_data:
         dest.blit(img, pos)
-    # for cursor, cond in _eng.cursors:
-    #     if cond() and pygame.mouse.get_cursor() != cursor:
-    #         pygame.mouse.set_cursor(cursor)
-    #         break
+    for cursor, cond in _eng.cursors:
+        if cond() and pygame.mouse.get_cursor() != cursor:
+            pygame.mouse.set_cursor(cursor)
+            break
 
 
 def process_widget_events(event, mouse):

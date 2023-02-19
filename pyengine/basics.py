@@ -3,7 +3,6 @@ import translatepy
 from translatepy.translators.google import GoogleTranslate as _TpyGoogleTranslate
 from googletrans import Translator as _GoogleGoogleTranslate
 from pandas.io.clipboard import clipboard_get as pd_clipboard_get
-from copy import deepcopy
 import operator as op
 import numpy as np
 import inspect
@@ -37,6 +36,7 @@ BULLET = "⁍"
 int_to_word = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"]
 pritn = print   # because
 prrint = print  # because
+pirnt = print   # becase
 PRINT = print   # because
 epoch = time.time
 lambda_none = lambda *a, **kwa: None
@@ -46,6 +46,33 @@ gf_combo_names = ["super", "power", "ninja", "turbo", "neo", "ultra", "hyper", "
 
 
 # functions
+def semicircle(x):
+    return sqrt(1 - x ** 2)
+
+
+def rand_sine_wave(l):
+    def inner(x):
+        f = "".join([f"{i} * sin(x / {i})" + (" + " if i < l - 1 else "") for i in range(1, l)])
+        ev = f.replace("x", str(x))
+        return eval(ev)
+
+    return inner
+
+
+def delay(func, secs, *args, **kwargs):
+    def inner():
+        sleep(secs)
+        func(*args, **kwargs)
+
+    DThread(target=inner).start()
+
+
+def rot_matrix_2d(x, y, p):
+    xp = x * cos(p) - y * sin(p)
+    yp = y * cos(p) + x * sin(p)
+    return xp, yp
+
+
 def trig_wave(a, w, h, t, x=0, y=0):
     ret = [0, 0]
     ret[0] = w * cos(a) * cos(t) - h * sin(a) * sin(t) + x
@@ -53,8 +80,21 @@ def trig_wave(a, w, h, t, x=0, y=0):
     return ret
 
 
+def lemniscate(x, a=1, p=1):  # x: function x; a: magnitude parameter; p: power
+    return a * x * sqrt(1 - x ** 2) ** p
+
+
 def flatten2dl(l):
     return sum(l, [])
+
+
+def sign(x):
+    if x > 0:
+        return 1
+    elif x == 0:
+        return 0
+    elif x < 0:
+        return -1
 
 
 def rand_alien_name():
@@ -386,7 +426,7 @@ def txt2list(path_):
         return [line.rstrip("\n") for line in f.readlines()]
 
 
-def first(itr, val, default):
+def first(itr, val, default=None):
     for i, v in enumerate(itr):
         if callable(val):
             if val(v):
@@ -574,27 +614,13 @@ def merge(*funcs):
     return wrapper
 
 
-def delay(secs):
-    def decorator(func):
-        def wrapper():
-            Thread(target=thread).start()
-
-        def thread():
-            time.sleep(secs)
-            func()
-
-        return wrapper
-
-    return decorator
-
-
-# decorators
 profiler = LineProfiler()
 def profile(func):
     def inner(*args, **kwargs):
         profiler.add_function(func)
         profiler.enable_by_count()
         return func(*args, **kwargs)
+
     return inner
 
 
@@ -741,10 +767,13 @@ class Noise:
     def __init__(self, r):
         self.r = r
 
-    def linear(self, average, length, flatness=0):
+    def linear(self, average, length, flatness=0, start=None):
         noise = []
         avg = average
-        noise.append(nordis(avg, 2, self.r))
+        if start is None:
+            noise.append(nordis(avg, 2, self.r))
+        else:
+            noise.append(start)
         for _ in range(length - 1):
             # bounds
             if noise[-1] == avg - 2:
@@ -814,15 +843,20 @@ class SmartList(list):
         for val in itr:
             self.insert(0, val)
 
-    def smoothen(self, a, b, le, ge, hl, itr):
+    def smoothen(self, wall, air, deficiency, overdosis, birth, itr, hl):
         for _ in range(itr):
             cop = SmartList(self)
-            for index, block in enumerate(cop):
-                nei = cop.moore(index, hl)
-                if nei.count(b) <= le:
-                    self[index] = a
-                elif nei.count(b) >= ge:
-                    self[index] = b
+            for i, x in enumerate(cop):
+                neighbors = cop.moore(i, hl)
+                corners = 8 - len(neighbors)
+                if x == wall:
+                    if neighbors.count(wall) + corners < deficiency:
+                        self[i] = air
+                    elif neighbors.count(wall) + corners > overdosis:
+                        self[i] = air
+                elif x == air:
+                    if neighbors.count(wall) + corners == birth:
+                        self[i] = wall
 
     def find(self, cond, retlist=False):
         return [x for x in self if cond(x)][0 if not retlist else slice(0, len(self))]

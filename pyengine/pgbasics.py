@@ -5,6 +5,7 @@ import pygame
 from pygame.locals import *
 import pygame.gfxdraw
 import pygame.midi
+import pymunk
 from colorsys import rgb_to_hsv, hsv_to_rgb, rgb_to_hls, hls_to_rgb
 
 
@@ -32,10 +33,11 @@ SILVER =        (210, 210, 210)
 LIGHT_GRAY =    (180, 180, 180)
 GRAY =          (120, 120, 120)
 DARK_GRAY =     ( 80,  80,  80)
+WIDGET_GRAY =   (150, 150, 150)
 RED =           (255,   0,   0)
 DARK_RED =      ( 56,   0,   0)
 LIGHT_PINK =    (255, 247, 247)
-GREEN =         (  0, 150,   0)
+GREEN =         (  0, 255,   0)
 MOSS_GREEN =    ( 98, 138,  56)
 DARK_GREEN =    (  0,  70,   0)
 DARKISH_GREEN = (  0,  120,  0)
@@ -46,8 +48,9 @@ YELLOW =        (255, 255,   0)
 YELLOW_ORANGE = (255, 174,  66)
 SKIN_COLOR =    (255, 219, 172)
 GOLD =          (255, 214,   0)
+BLUE =          (  0,  0,  255)
 POWDER_BLUE =   (176, 224, 230)
-WATER_BLUE =    (  0, 191, 255)
+WATER_BLUE =    ( 17, 130, 177)
 SKY_BLUE =      (220, 248, 255)
 LIGHT_BLUE =    (137, 209, 254)
 SMOKE_BLUE =    (154, 203, 255)
@@ -65,6 +68,8 @@ CREAM =         pygame.Color("#F8F0C6")
 
 INF = "\u221e"  # infinity symbol (unicode)
 
+# other constants
+pass
 
 # surfaces
 def circle(radius, color=BLACK):
@@ -87,6 +92,16 @@ def aaellipse(width, height, color=BLACK):
 
 
 # functions
+def rot_pivot(image, pos, originPos, angle):
+    image_rect = image.get_rect(topleft = (pos[0] - originPos[0], pos[1]-originPos[1]))
+    offset_center_to_pivot = pygame.math.Vector2(pos) - image_rect.center
+    rotated_offset = offset_center_to_pivot.rotate(-angle)
+    rotated_image_center = (pos[0] - rotated_offset.x, pos[1] - rotated_offset.y)
+    rotated_image = pygame.transform.rotate(image, angle)
+    rotated_image_rect = rotated_image.get_rect(center = rotated_image_center)
+    return rotated_image, rotated_image_rect
+
+
 def color_diff_euclid(c1, c2):
     dx = c2[0] - c1[0]
     dy = c2[1] - c1[1]
@@ -247,9 +262,9 @@ def depr_contrast_color(rgb):
     return hsv_to_rgb((hsv[0] + 0.5) % 1, hsv[1], hsv[2])
 
 
-def rot_center(img, angle, x, y):
+def rot_center(img, angle, pos):
     rot_img = rotozoom(img, angle, 1)
-    new_rect = rot_img.get_rect(center=(x, y))
+    new_rect = rot_img.get_rect(center=pos)
     return rot_img, new_rect
 
 
@@ -306,6 +321,14 @@ def darken(pg_img, factor=0.7):
     return ret
 
 
+def grayscale(img):
+    arr = pygame.surfarray.array3d(img)
+    avgs = [[(r * 0.298 + g * 0.587 + b * 0.114) for (r, g, b) in col] for col in arr]
+    arr = array([[(avg, avg, avg) for avg in col] for col in avgs])
+    surf = pygame.surfarray.make_surface(arr)
+    return surf
+
+
 def distance(rect1, rect2):
     try:
         return hypot(abs(rect1.x - rect2.x), abs(rect1.y - rect2.y))
@@ -317,6 +340,13 @@ def center_window():
     os.environ["SDL_VIDEO_CENTERED"] = "1"
 
 
+def point_in_mask(point, mask, rect):
+    if rect.collidepoint(point):
+        pos_in_mask = (point[0] - rect.x, point[1] - rect.y)
+        return mask.get_at(pos_in_mask)
+    return False
+
+
 def scalex(img, ratio):
     return pygame.transform.scale(img, [int(s * ratio) for s in img.get_size()])
 
@@ -325,18 +355,15 @@ def shrink2x(img):
     return pygame.transform.scale(img, [s / 2 for s in img.get_size()])
 
 
-def point_in_mask(point, mask, rect):
-    if rect.collidepoint(point):
-        pos_in_mask = (point[0] - rect.x, point[1] - rect.y)
-        return mask.get_at(pos_in_mask)
-    return False
-
-
 def scale3x(img):
     return pygame.transform.scale(img, [s * 3 for s in img.get_size()])
 
 
-def imgload(*path_, after_func="convert_alpha", colorkey=None, frames=None, frame_pause=0, scale=1, rotation=0):
+def shrink3x(img):
+    return pygame.transform.scale(img, [s / 3 for s in img.get_size()])
+
+
+def imgload(*path_, after_func="convert_alpha", colorkey=None, frames=None, whitespace=0, frame_pause=0, end_frame=None, scale=1, rotation=0):
     if frames is None:
         ret = pygame.image.load(path(*path_))
     else:
@@ -344,9 +371,11 @@ def imgload(*path_, after_func="convert_alpha", colorkey=None, frames=None, fram
         img = pygame.image.load(path(*path_))
         frames = (frames, img.get_width() / frames)
         for i in range(frames[0]):
-            ret.append(img.subsurface(i * frames[1], 0, frames[1], img.get_height()))
+            ret.append(img.subsurface(i * frames[1], 0, frames[1] - whitespace, img.get_height()))
         for i in range(frame_pause):
             ret.append(ret[0])
+        if end_frame is not None:
+            ret.append(ret[end_frame])
     if isinstance(ret, list):
         for i, r in enumerate(ret):
             ret[i] = rotate(scalex(getattr(r, after_func)() if after_func is not None else r, scale), rotation)
@@ -455,23 +484,24 @@ def rgb_mult(color, factor):
     return ret_list
 
 
-def img_mult(img, mult):
-    """
-    pil_img = pg_to_pil(img)
-    enhancer = PIL.ImageEnhance.Brightness(pil_img)
-    pil_img = enhancer.enhance(0.5)
-    data = pil_img.tobytes()
-    size = pil_img.size
-    mode = pil_img.mode
-    return pygame.image.fromstring(data, size, mode).convert_alpha()
-    """
-    ret_img = img.copy()
-    for y in range(img.get_height()):
-        for x in range(img.get_width()):
-            rgba = img.get_at((x, y))
-            if ret_img.get_at((x, y)) != (0, 0, 0, 0):
-                ret_img.set_at((x, y), rgb_mult(rgba[:3], mult))
-    return ret_img
+def img_mult(img, mult, type_=1):
+    t = epoch()
+    if type_ == 1:
+        pil_img = pg_to_pil(img)
+        enhancer = PIL.ImageEnhance.Brightness(pil_img)
+        pil_img = enhancer.enhance(0.5)
+        data = pil_img.tobytes()
+        size = pil_img.size
+        mode = pil_img.mode
+        return pygame.image.fromstring(data, size, mode).convert_alpha()
+    elif type_ == 2:
+        ret_img = img.copy()
+        for y in range(img.get_height()):
+            for x in range(img.get_width()):
+                rgba = img.get_at((x, y))
+                if ret_img.get_at((x, y)) != (0, 0, 0, 0):
+                    ret_img.set_at((x, y), rgb_mult(rgba[:3], mult))
+        return ret_img
 
 
 def red_filter(img):
@@ -504,6 +534,16 @@ def hide_cursor():
 
 
 # decorator functions
+def get_binary_cursor(string, hotspot=(0, 0), black="x", white="-", xor=".", img=None):
+    if img is None:
+        size = (len(string[0]), len(string))
+        xorm, andm = pygame.cursors.compile(string, black, white, xor)
+        cursor = pygame.cursors.Cursor(size, hotspot, xorm, andm)
+    else:
+        return NotImplemented
+    return cursor
+
+
 def loading(func, window, font, exit_command=None):
     class T:
         def __init__(self):
@@ -526,6 +566,108 @@ bar_rgb = (lerp(RED, ORANGE, 34) + lerp(ORANGE, YELLOW, 33) + lerp(YELLOW, LIGHT
 
 
 # classes
+class SmartVector:
+    @property
+    def _rect(self):
+        return pygame.Rect(self.x, self.y, *self.size)
+
+    @property
+    def left(self):
+        return self.x
+
+    @left.setter
+    def left(self, value):
+        self.x = value
+
+    @property
+    def right(self):
+        return self.x + self.width
+
+    @right.setter
+    def right(self, value):
+        self.x = value - self.width
+
+    @property
+    def centerx(self):
+        return self.x + self.width / 2
+
+    @centerx.setter
+    def centerx(self, value):
+        self.x = value - self.width / 2
+
+    @property
+    def centery(self):
+        return self.y + self.height / 2
+
+    @centery.setter
+    def centery(self, value):
+        self.y = value - self.height / 2
+
+    @property
+    def center(self):
+        return (self.centerx, self.centery)
+
+    @center.setter
+    def center(self, value):
+        self.centerx = value[0]
+        self.centery = value[1]
+
+    @property
+    def top(self):
+        return self.y
+
+    @top.setter
+    def top(self, value):
+        self.y = value
+
+    @property
+    def bottom(self):
+        return self.y + self.height
+
+    @bottom.setter
+    def bottom(self, value):
+        self.y = value - self.height
+
+
+class PhysicsEntity:
+    def __init__(self, win, space, x, y, r=5, d=1, e=1, static=False):
+        self.win = win
+        self.width, self.height = self.win.get_size()
+        self.space = space
+        self.x, self.y = x, y
+        if static:
+            self.body = pymunk.Body(body_type=pymunk.Body.STATIC)
+        else:
+            self.body = pymunk.Body()
+        self.body.position = (x, win.get_height() - y)
+        self.r = r
+        self.shape = pymunk.Circle(self.body, r)
+        self.shape.density = d
+        self.shape.elasticity = e
+        self.space.add(self.body, self.shape)
+
+    def draw(self):
+        body_pos = [self.body.position[0], self.height - self.body.position[1]]
+        body_pos = [int(x) for x in body_pos]
+        pygame.gfxdraw.filled_circle(self.win, *body_pos, self.r, (255, 12, 47))
+
+
+class PhysicsEntityConnector:
+    def __init__(self, win, space, src, dest):
+        self.win = win
+        self.width, self.height = self.win.get_size()
+        self.space = space
+        self.src = src
+        self.dest = dest
+        self.joint = pymunk.PinJoint(self.src.body, self.dest.body)
+        self.space.add(self.joint)
+
+    def draw(self):
+        src_pos = [self.src.body.position[0], self.height - self.src.body.position[1]]
+        dest_pos = [self.dest.body.position[0], self.height - self.dest.body.position[1]]
+        pygame.draw.aaline(self.win, (27, 120, 60), src_pos, dest_pos)
+
+
 class _Key:
     def __repr__(self):
         return repr(self.codes)
