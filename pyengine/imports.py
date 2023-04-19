@@ -1,5 +1,5 @@
 from math import floor, ceil, sqrt, hypot, sin, cos, tan, asin, acos, atan, atan2, degrees, radians, pi, e, log2, log
-from random import randint as rand, uniform as randf, gauss, choice, choices
+from random import randint as rand, uniform as randf, gauss, choice, choices, Random
 from contextlib import suppress, redirect_stdout, nullcontext, closing
 from types import SimpleNamespace as EmptyObject, FunctionType
 from collections import OrderedDict as OD, defaultdict as dd
@@ -7,6 +7,7 @@ from tempfile import TemporaryFile, NamedTemporaryFile
 from os.path import join as path, isfile, splitext
 from time import sleep, perf_counter
 from itertools import chain, product
+from multiprocessing import Process
 from difflib import SequenceMatcher
 from importlib import import_module
 from send2trash import send2trash
@@ -27,6 +28,7 @@ import threading
 import platform
 import random
 import shutil
+import numpy
 import types
 import math
 import time

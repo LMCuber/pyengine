@@ -3,10 +3,12 @@ from .basics import *
 from .pilbasics import pil_to_pg
 import pygame
 from pygame.locals import *
+from pygame._sdl2.video import Window, Renderer, Texture, Image
 import pygame.gfxdraw
 import pygame.midi
 import pymunk
 from colorsys import rgb_to_hsv, hsv_to_rgb, rgb_to_hls, hls_to_rgb
+from numpy import array
 
 
 pygame.init()
@@ -21,62 +23,93 @@ rotozoom = pygame.transform.rotozoom
 flip = pygame.transform.flip
 set_cursor = pygame.mouse.set_cursor
 
+STATIC = pymunk.Body.STATIC
+DYNAMIC = pymunk.Body.DYNAMIC
+KINEMATIC = pymunk.Body.KINEMATIC
+
 # event costants
 is_left_click = lambda event: event.type == pygame.MOUSEBUTTONDOWN and event.button == 1
 
 # colors
-BLACK =         (  0,   0,   0)
-BLAC =          (  1,   1,   1)
-ALMOST_BLACK =  ( 40,  40,  40)
-WHITE =         (255, 255, 255)
-SILVER =        (210, 210, 210)
-LIGHT_GRAY =    (180, 180, 180)
-GRAY =          (120, 120, 120)
-DARK_GRAY =     ( 80,  80,  80)
-WIDGET_GRAY =   (150, 150, 150)
-RED =           (255,   0,   0)
-DARK_RED =      ( 56,   0,   0)
-LIGHT_PINK =    (255, 247, 247)
-GREEN =         (  0, 255,   0)
-MOSS_GREEN =    ( 98, 138,  56)
-DARK_GREEN =    (  0,  70,   0)
-DARKISH_GREEN = (  0,  120,  0)
-LIGHT_GREEN =   (  0, 255,   0)
-MINT =          (186, 227, 209)
-TURQUOISE =     ( 64, 224, 208)
-YELLOW =        (255, 255,   0)
-YELLOW_ORANGE = (255, 174,  66)
-SKIN_COLOR =    (255, 219, 172)
-GOLD =          (255, 214,   0)
-BLUE =          (  0,  0,  255)
-POWDER_BLUE =   (176, 224, 230)
-WATER_BLUE =    ( 17, 130, 177)
-SKY_BLUE =      (220, 248, 255)
-LIGHT_BLUE =    (137, 209, 254)
-SMOKE_BLUE =    (154, 203, 255)
-DARK_BLUE =     (  0,   0,  50)
-BLUE =          (  0,   0, 200)
-PURPLE =        (153,  50, 204)
-DARK_PURPLE =   ( 48,  25,  52)
-ORANGE =        (255,  94,  19)
-BROWN =         (125,  70,   0)
-DARKISH_BROWN = ( 87,  45,   7)
-LIGHT_BROWN =   (149,  85,   0)
-DARK_BROWN =    (101,  67,  33)
-PINK =          (255, 192, 203)
+BLACK =         (  0,   0,   0, 255)
+BLAC =          (  1,   1,   1, 255)
+ALMOST_BLACK =  ( 40,  40,  40, 255)
+WHITE =         (255, 255, 255, 255)
+SILVER =        (210, 210, 210, 255)
+LIGHT_GRAY =    (180, 180, 180, 255)
+GRAY =          (120, 120, 120, 255)
+DARK_GRAY =     ( 80,  80,  80, 255)
+WIDGET_GRAY =   (150, 150, 150, 255)
+RED =           (255,   0,   0, 255)
+DARK_RED =      ( 56,   0,   0, 255)
+LIGHT_PINK =    (255, 247, 247, 255)
+GREEN =         (  0, 255,   0, 255)
+MOSS_GREEN =    ( 98, 138,  56, 255)
+DARK_GREEN =    (  0,  70,   0, 255)
+DARKISH_GREEN = (  0,  120,  0, 255)
+LIGHT_GREEN =   (  0, 255,   0, 255)
+SLIME_GREEN =   (101, 255,   0, 255)
+MINT =          (186, 227, 209, 255)
+TURQUOISE =     ( 64, 224, 208, 255)
+YELLOW =        (255, 255,   0, 255)
+YELLOW_ORANGE = (255, 174,  66, 255)
+SKIN_COLOR =    (255, 219, 172, 255)
+GOLD =          (255, 214,   0, 255)
+BLUE =          (  0,  0,  255, 255)
+POWDER_BLUE =   (176, 224, 230, 255)
+WATER_BLUE =    ( 17, 130, 177, 255)
+SKY_BLUE =      (220, 248, 255, 255)
+LIGHT_BLUE =    (137, 209, 254, 255)
+SMOKE_BLUE =    (154, 203, 255, 255)
+DARK_BLUE =     (  0,   0,  50, 255)
+BLUE =          (  0,   0, 200, 255)
+PURPLE =        (153,  50, 204, 255)
+DARK_PURPLE =   ( 48,  25,  52, 255)
+ORANGE =        (255,  94,  19, 255)
+BROWN =         (125,  70,   0, 255)
+DARKISH_BROWN = ( 87,  45,   7, 255)
+LIGHT_BROWN =   (149,  85,   0, 255)
+DARK_BROWN =    (101,  67,  33, 255)
+PINK =          (255, 192, 203, 255)
 CREAM =         pygame.Color("#F8F0C6")
 
-INF = "\u221e"  # infinity symbol (unicode)
-
 # other constants
-pass
+INF = "\u221e"  # infinity symbol (unicode)
+orthogonal_projection_matrix = array([
+    [1, 0, 0],
+    [0, 1, 0],
+    [0, 0, 0]
+])
+
+
+def get_rotation_matrix_x(angle_x):
+    rotation_x = array([[1, 0, 0],
+                    [0, cos(angle_x), -sin(angle_x)],
+                    [0, sin(angle_x), cos(angle_x)]])
+    return rotation_x
+
+
+def get_rotation_matrix_y(angle_y):
+    rotation_y = array([[cos(angle_y), 0, sin(angle_y)],
+                    [0, 1, 0],
+                    [-sin(angle_y), 0, cos(angle_y)]])
+    return rotation_y
+
+
+def get_rotation_matrix_z(angle_z):
+    rotation_z = array([[cos(angle_z), -sin(angle_z), 0],
+                    [sin(angle_z), cos(angle_z), 0],
+                    [0, 0, 1]])
+    return rotation_z
+
 
 # surfaces
 def circle(radius, color=BLACK):
-    ret = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
+    ret = pygame.Surface((radius * 2 + 1, radius * 2 + 1), pygame.SRCALPHA)
     #pygame.gfxdraw.filled_circle(ret, radius, radius, radius, color)
     pygame.draw.circle(ret, color, (radius, radius), radius)
     return ret
+
 
 def triangle(height, color=BLACK):
     ret = pygame.Surface((height, height), pygame.SRCALPHA)
@@ -92,6 +125,25 @@ def aaellipse(width, height, color=BLACK):
 
 
 # functions
+def mult_matrix(a, b):
+    a_rows = len(a)
+    a_cols = len(a[0])
+
+    b_rows = len(b)
+    b_cols = len(b[0])
+    # Dot product matrix dimentions = a_rows x b_cols
+    product = [[0 for _ in range(b_cols)] for _ in range(a_rows)]
+
+    if a_cols == b_rows:
+        for i in range(a_rows):
+            for j in range(b_cols):
+                for k in range(b_rows):
+                    product[i][j] += a[i][k] * b[k][j]
+    else:
+        print("INCOMPATIBLE MATRIX SIZES")
+    return product
+
+
 def rot_pivot(image, pos, originPos, angle):
     image_rect = image.get_rect(topleft = (pos[0] - originPos[0], pos[1]-originPos[1]))
     offset_center_to_pivot = pygame.math.Vector2(pos) - image_rect.center
@@ -309,8 +361,8 @@ def two_pos_to_vel(pos, mouse, speed=1):
     return angle_to_vel(two_pos_to_angle(pos, mouse), speed)
 
 
-def rand_rgb():
-    return tuple(rand(0, 255) for _ in range(3))
+def rand_rgba():
+    return tuple(rand(0, 255) for _ in range(3)) + (255,)
 
 
 def darken(pg_img, factor=0.7):
@@ -408,13 +460,23 @@ def lerp_img(start, end, amount, height):
     return surf
 
 
-def write(surf, anchor, text, font, color, x, y, alpha=255, blit=True):
+def write(surf, anchor, text, font, color, x, y, alpha=255, blit=True, border=None, special_flags=0, tex=False):
+    if border is not None:
+        bc, bw = border, 1
+        write(surf, anchor, text, font, bc, x - bw, y - bw),
+        write(surf, anchor, text, font, bc, x + bw, y - bw),
+        write(surf, anchor, text, font, bc, x - bw, y + bw),
+        write(surf, anchor, text, font, bc, x + bw, y + bw)
     text = font.render(str(text), True, color)
-    text.set_alpha(alpha)
+    if tex:
+        text = Texture.from_surface(surf, text)
+        text.alpha = alpha
+    else:
+        text.set_alpha(alpha)
     text_rect = text.get_rect()
     setattr(text_rect, anchor, (int(x), int(y)))
     if blit:
-        surf.blit(text, text_rect)
+        surf.blit(text, text_rect, special_flags=special_flags)
     return text, text_rect
 
 
@@ -516,16 +578,14 @@ def red_filter(img):
 
 
 def swap_palette(surf, old_color, new_color):
-    img = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
-    img.blit(surf, (0, 0))
-    for y in range(img.get_height()):
-        for x in range(img.get_width()):
-            rgba = surf.get_at((x, y))
-            color = rgba[:-1]
-            if color == old_color:
-                img.set_at((x, y), new_color)
-    img = img.convert_alpha()
-    return img
+    # TODO: perhaps rewrite with transparency
+    old_color = old_color[:3]
+    new = surf.copy()
+    for y in range(surf.get_height()):
+        for x in range(surf.get_width()):
+            if new.get_at((x, y))[:3] == old_color:
+                new.set_at((x, y), new_color)
+    return new
 
 
 def hide_cursor():
@@ -566,10 +626,77 @@ bar_rgb = (lerp(RED, ORANGE, 34) + lerp(ORANGE, YELLOW, 33) + lerp(YELLOW, LIGHT
 
 
 # classes
-class SmartVector:
+class Crystal:
+    def __init__(self, renderer, vertices, point_colors, connections, fills, origin, mult, radius, xa=0, ya=0, za=0, xav=0, yav=0, zav=0):
+        self.renderer = renderer
+        self.vertices = array(vertices)
+        self.r = radius
+        self.point_colors = point_colors
+        self.circles = [Texture.from_surface(self.renderer, circle(self.r, color)) for color in point_colors]
+        self.connections = connections
+        self.fills = fills
+        self.ox, self.oy = origin
+        self.m = mult
+        self.xa, self.ya, self.za = xa, ya, za
+        self.xav, self.yav, self.zav = xav, yav, zav
+
+    def update(self):
+        self.draw()
+
+    def draw(self):
+        self.points = []
+        self.updated_vertices = []
+        for index, vertex in enumerate(self.vertices):
+            # rotate
+            self.xa += self.xav
+            self.ya += self.yav
+            self.za += self.zav
+            # rotate the matrices
+            vertex = vertex.dot(get_rotation_matrix_x(self.xa))
+            vertex = vertex.dot(get_rotation_matrix_y(self.ya))
+            vertex = vertex.dot(get_rotation_matrix_z(self.za))
+            self.updated_vertices.append(vertex)
+            # project the matrices
+            pos = vertex.dot(orthogonal_projection_matrix)
+            x, y = self.m * pos[0] + self.ox, self.m * pos[1] + self.oy
+            rect = pygame.Rect(x - self.r, y - self.r, self.r * 2, self.r * 2)
+            self.renderer.blit(self.circles[index], rect)
+            self.points.append((x, y))
+        for connection in self.connections:
+            self.connect_points(*connection)
+        for fill in self.fills:
+            self.fill_points(*fill)
+
+    def connect_points(self, line_color, i, j):
+        self.renderer.draw_color = line_color
+        self.renderer.draw_line(self.points[i], self.points[j])
+
+    def fill_points(self, fill_color, *points):
+        self.renderer.draw_color = fill_color
+        if len(points) == 3:
+            self.renderer.fill_triangle(*[self.points[i] for i in points])
+        elif len(points) == 4:
+            self.renderer.fill_quad(*[self.points[i] for i in points])
+
+
+class CImage(Image):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.get_rect = self.texture.get_rect
+
     @property
-    def _rect(self):
-        return pygame.Rect(self.x, self.y, *self.size)
+    def width(self):
+        return self.texture.width
+
+    @property
+    def height(self):
+        return self.texture.height
+
+
+class SmartVector:
+    # @property
+    # def _rect(self):
+    #     return pygame.Rect(self.x, self.y, *self.size)
 
     @property
     def left(self):
@@ -630,42 +757,48 @@ class SmartVector:
 
 
 class PhysicsEntity:
-    def __init__(self, win, space, x, y, r=5, d=1, e=1, static=False):
+    def __init__(self, win, size, space, x, y, r=5, d=1, e=1, body_type=pymunk.Body.DYNAMIC):
         self.win = win
-        self.width, self.height = self.win.get_size()
+        self.width, self.height = size
         self.space = space
         self.x, self.y = x, y
-        if static:
-            self.body = pymunk.Body(body_type=pymunk.Body.STATIC)
-        else:
-            self.body = pymunk.Body()
-        self.body.position = (x, win.get_height() - y)
+        self.body = pymunk.Body(body_type=body_type)
+        self.body.position = (x, self.height - y)
         self.r = r
         self.shape = pymunk.Circle(self.body, r)
         self.shape.density = d
         self.shape.elasticity = e
         self.space.add(self.body, self.shape)
+        self.img = pygame.Surface([self.r * 2 + 1] * 2, pygame.SRCALPHA)
+        pygame.gfxdraw.aacircle(self.img, self.r, self.r, self.r, RED)
+        self.img = Texture.from_surface(self.win, self.img)
 
     def draw(self):
         body_pos = [self.body.position[0], self.height - self.body.position[1]]
-        body_pos = [int(x) for x in body_pos]
-        pygame.gfxdraw.filled_circle(self.win, *body_pos, self.r, (255, 12, 47))
+        body_pos = [int(p - self.r) for p in body_pos]
+        body_rect = pygame.Rect(*body_pos, self.r * 2, self.r * 2)
+        self.win.blit(self.img, body_rect)
+
+    def go(self, pos):
+        self.body.position = (pos[0], self.height - pos[1])
 
 
 class PhysicsEntityConnector:
-    def __init__(self, win, space, src, dest):
+    def __init__(self, win, size, space, src, dest):
         self.win = win
-        self.width, self.height = self.win.get_size()
+        self.width, self.height = size
         self.space = space
         self.src = src
         self.dest = dest
         self.joint = pymunk.PinJoint(self.src.body, self.dest.body)
+        # self.limit_joint = pymunk.SlideJoint()
         self.space.add(self.joint)
 
     def draw(self):
         src_pos = [self.src.body.position[0], self.height - self.src.body.position[1]]
         dest_pos = [self.dest.body.position[0], self.height - self.dest.body.position[1]]
-        pygame.draw.aaline(self.win, (27, 120, 60), src_pos, dest_pos)
+        self.win.draw_color = (27, 120, 60, 255)
+        self.win.draw_line(src_pos, dest_pos)
 
 
 class _Key:

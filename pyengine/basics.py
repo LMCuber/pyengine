@@ -64,7 +64,7 @@ def delay(func, secs, *args, **kwargs):
         sleep(secs)
         func(*args, **kwargs)
 
-    DThread(target=inner).start()
+    Thread(target=inner).start()
 
 
 def rot_matrix_2d(x, y, p):
@@ -764,8 +764,8 @@ class GoogletransTranslator(_Translator):
 
 
 class Noise:
-    def __init__(self, r):
-        self.r = r
+    def __init__(self, r=None):
+        self.r = r if r is not None else Random(3.14)
 
     def linear(self, average, length, flatness=0, start=None):
         noise = []

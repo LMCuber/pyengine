@@ -55,13 +55,14 @@ class _Widget:
             for append in appends:
                 append.append(self)
         setattr(self.rect, anchor, pos)
+        self.image = Texture.from_surface(self.surf, self.image)
         Thread(target=self.zoom, args=["in"]).start()
         self.startup_command()
 
     def init_size(self, width=None, height=None, text=None):
         w = width if width is not None else self.font.size(text)[0] + 5
         h = height if height is not None else self.font.size(text)[1] + 5
-        self.image = pygame.Surface((w, h)).convert_alpha()
+        self.image = pygame.Surface((w, h))
 
     def _exec_command(self, command, after=None, *args, **kwargs):
         if callable(command):
@@ -101,18 +102,20 @@ class _Widget:
         if type_ == "in":
             self.zooming = True
             for i in range(20):
-                size = [round(fromperc((i + 1) * 5, s)) for s in self.og_size]
-                self.image = pygame.transform.scale(self.og_img, size)
-                self.rect = self.image.get_rect()
+                if False:
+                    size = [round(fromperc((i + 1) * 5, s)) for s in self.og_size]
+                    self.image = pygame.transform.scale(self.og_img, size)
+                    self.rect = self.image.get_rect()
                 setattr(self.rect, self.og_anchor, self.og_pos)
                 time.sleep(WOOSH_TIME)
             self.zooming = False
         elif "out" in type_:
             self.zooming = True
             for i in reversed(range(20)):
-                size = [round(fromperc((i + 1) * 5, s)) for s in self.og_size]
-                self.image = pygame.transform.scale(self.og_img, size)
-                self.rect = self.image.get_rect()
+                if False:
+                    size = [round(fromperc((i + 1) * 5, s)) for s in self.og_size]
+                    self.image = pygame.transform.scale(self.og_img, size)
+                    self.rect = self.image.get_rect()
                 setattr(self.rect, self.og_anchor, self.og_pos)
                 time.sleep(WOOSH_TIME)
             if type_ == "out":
@@ -143,9 +146,9 @@ class _Widget:
 class ButtonBehavior:
     def update(self):
         if self.rect.collidepoint(pygame.mouse.get_pos()):
-            self.image.set_alpha(150)
+            self.image.alpha = 150
         else:
-            self.image.set_alpha(255)
+            self.image.alpha = 255
 
     def click(self):
         self.command()
@@ -243,7 +246,7 @@ class Entry(_Widget):
         self.func_args = func_args
         self.text_color = text_color
         self.text_width = self.font.size(title)[0] + 10
-        self.image = pygame.Surface((self.text_width, 60)).convert_alpha()
+        self.image = pygame.Surface((self.text_width, 60))
         self.image.fill(WIDGET_GRAY)
         under = pygame.Surface((self.text_width, 30))
         under.fill(WHITE)
@@ -358,27 +361,28 @@ class Entry(_Widget):
         mod = self.mod = pygame.key.get_mods()
         if self.keyboard and not self.has_keyboard and not self.zooming:
             self.init_keyboard()
-        if self.has_keyboard:
+        if self.has_keyboard and 1 == 0:
             for key, rect in self.keyboard_rects.items():
                 if key == self.focused_key:
-                    pygame.draw.rect(self.surf, (180, 180, 180), rect)
+                    (self.surf, (180, 180, 180), rect)
                 elif rect.collidepoint(pygame.mouse.get_pos()):
-                    pygame.draw.rect(self.surf, (240, 240, 240), rect)
+                    (self.surf, (240, 240, 240), rect)
                 else:
-                    pygame.draw.rect(self.surf, (220, 220, 220), rect)
-                pygame.draw.rect(self.surf, (40, 40, 40), rect, 1)
+                    (self.surf, (220, 220, 220), rect)
+                (self.surf, (40, 40, 40), rect, 1)
                 if not key.startswith("!"):
                     wr = keyboard_map.get(key, key.upper() if mod == K_SHIFT else key) if mod == K_SHIFT else key
-                    write(self.surf, "center", wr, self.key_font, BLACK, *rect.center)
-            pygame.draw.rect(self.surf, BLACK, (self.min_x, self.min_y, self.wid_x, self.hei_y), 1)
-        w, h = self.image.get_width(), self.image.get_height()
-        self.image.fill(WHITE, (0, h / 2, w, h / 2))
+                    write(self.surf, "center", wr, self.key_font, BLACK, *rect.center, tex=True)
+            (self.surf, BLACK, (self.min_x, self.min_y, self.wid_x, self.hei_y), 1)
+        w, h = self.image.width, self.image.height
+        # self.image.fill(WHITE, (0, h / 2, w, h / 2))
         if self.default_text and self.output == "":
-            write(self.image, "midleft", self.default_text[0], self.default_text[1], WIDGET_GRAY, 5, self.image.get_height() / 4 * 3)
+            write(self.surf, "midleft", self.default_text[0], self.default_text[1], WIDGET_GRAY, self.rect.x + 5, self.rect.y + self.image.height / 4 * 3, tex=True)
         elif self.on and self.focused:
-            write(self.image, "midleft", self.output + "|", self.font, self.text_color, 5, self.image.get_height() / 4 * 3)
+            write(self.surf, "midleft", self.output + "|", self.font, self.text_color, self.rect.x + 5, self.rect.y + self.image.height / 4 * 3, tex=True)
         else:
-            write(self.image, "midleft", self.output, self.font, self.text_color, 5, self.image.get_height() / 4 * 3)
+            if self.output:
+                write(self.surf, "midleft", self.output, self.font, self.text_color, self.rect.x + 5, self.rect.y + self.image.height / 4 * 3, tex=True)
         if ticks() - self.last_on >= 500:
             self.on = not self.on
             self.last_on = ticks()
@@ -389,7 +393,7 @@ class MessageboxOkCancel(_Widget):
         # base
         _Widget.__pre_init__(self, font, text)
         self.text_width = self.font.size(self.text)[0] + 10
-        self.image = pygame.Surface((self.text_width, 60)).convert_alpha()
+        self.image = pygame.Surface((self.text_width, 60))
         self.image.fill(WIDGET_GRAY)
         under = pygame.Surface((self.text_width, 30))
         under.fill(WHITE)
@@ -404,7 +408,7 @@ class MessageboxOkCancel(_Widget):
         # cancel
         write(self.image, "center", "CANCEL", self.font, BLACK, self.image.get_width() / 4 * 3, self.image.get_height() / 4 * 3)
         # rects
-        pygame.draw.rect(self.image, BLACK, (self.image.get_width() // 2 - 2, 30, 4, 30))
+        (self.image, BLACK, (self.image.get_width() // 2 - 2, 30, 4, 30))
         self.rects = {}
         self.rects["ok"] = pygame.Rect(self.rect.left, self.rect.top + 30, self.text_width // 2, 60)
         self.rects["no_ok"] = pygame.Rect(self.rect.left + self.text_width // 2, self.rect.top + 30, self.text_width, 60)
@@ -429,7 +433,7 @@ class MessageboxOk(_Widget):
         # base
         _Widget.__pre_init__(self, font, text)
         self.text_width = self.font.size(self.text)[0] + 10
-        self.image = pygame.Surface((self.text_width, 60)).convert_alpha()
+        self.image = pygame.Surface((self.text_width, 60))
         self.image.fill(WIDGET_GRAY)
         under = pygame.Surface((self.text_width, 30))
         under.fill(WHITE)
@@ -464,7 +468,7 @@ class MessageboxError(_Widget):
     def __init__(self, surf, text, pos=_DEF_WIDGET_POS, anchor="center", width=None, height=None, exit_command=None, visible_when=None, font=None, tooltip_font=None, friends=None, disabled=False, disable_type=False, template=None, add=True, special_flags=None, tooltip=None, appends=None, *args, **kwargs):
         _Widget.__pre_init__(self, font, text)
         self.text_width = self.font.size(self.text)[0] + 10
-        self.image = pygame.Surface((self.text_width, 60)).convert_alpha()
+        self.image = pygame.Surface((self.text_width, 60))
         self.image.fill(WIDGET_GRAY)
         under = pygame.Surface((self.text_width, 30))
         under.fill(WHITE)
@@ -498,11 +502,12 @@ class Checkbox(_Widget, _Overwriteable):
         self.bg_color = WIDGET_GRAY
         w = width - 30 if width is not None else self.font.size(text)[0]
         h = height - 10 if height is not None else self.font.size(text)[1]
-        self.image = pygame.Surface((30 + 5 + w + 5, 5 + h + 5)).convert_alpha()
+        self.image = pygame.Surface((30 + 5 + w + 5, 5 + h + 5))
         self.image.fill(self.bg_color)
         write(self.image, "topleft", text, self.font, BLACK, 30, 5)
         self.box = pygame.Surface((h - 5, h - 5))
         self.box.fill(WHITE)
+        self.box = Texture.from_surface(surf, self.box)
         self.rect = self.image.get_rect(center=pos)
         self.rects = {}
         self.while_checked_command = while_checked_command
@@ -510,6 +515,7 @@ class Checkbox(_Widget, _Overwriteable):
         self.check_command = check_command
         self.uncheck_command = uncheck_command
         self.check = get_icon("check", (h - 5, h - 5))
+        self.check = Texture.from_surface(surf, self.check)
         self.checked = False
         if checked:
             self.check_event()
@@ -525,11 +531,13 @@ class Checkbox(_Widget, _Overwriteable):
                 self.check_event()
 
     def update(self):
-        blitx, blity = 5, self.image.get_height() / 2 - self.box.get_height() / 2
-        self.image.blit(self.box, (blitx, blity))
+        bw, bh = self.box.width, self.box.height
+        xo, yo = 5, self.image.height / 2 - self.box.height / 2
+        blitx, blity = self.rect.x + xo, self.rect.y + yo
+        rect = pygame.Rect(blitx, blity, bw, bh)
+        self.surf.blit(self.box, rect)
         if self.checked:
-            bw, bh = self.box.get_size()
-            self.image.blit(self.check, (blitx, blity))
+            self.surf.blit(self.check, rect)
             self._exec_command(self.while_checked_command)
         elif self.while_not_checked_command:
             self._exec_command(self.while_not_checked_command)
@@ -586,10 +594,11 @@ class Slider(_Widget):
         self.mouses = pygame.mouse.get_pressed()
         if len(threading.enumerate()) == 1:
             if not hasattr(self, "slider_img"):
-                self.slider_img = pygame.Surface((7, self.image.get_height() / 2 - 4))
+                self.slider_img = pygame.Surface((7, self.image.height / 2 - 4))
                 self.slider_img.fill(GRAY)
+                self.slider_img = Texture.from_surface(self.surf, self.slider_img)
             if not hasattr(self, "slider_rect"):
-                self.slider_rect = self.slider_img.get_rect(bottomleft=(5, self.image.get_height() - 8))
+                self.slider_rect = self.slider_img.get_rect(bottomleft=(5, self.image.height - 8))
                 with suppress(ValueError):
                     self.slider_rect.x += self.values.index(self.value if isinstance(self.value, str) else round(self.value)) * self.mult
         if hasattr(self, "slider_img") and hasattr(self, "slider_rect"):
@@ -600,10 +609,10 @@ class Slider(_Widget):
                 elif self.slider_rect.right > self.rect.width - 5:
                     self.slider_rect.right = self.rect.width - 5
                 self.value = self.values[round((self.slider_rect.x - 5) * self.ratio)]
-            self.image.fill(self.color)
-            write(self.image, "topleft", self.text, self.font, BLACK, 5, 5)
-            write(self.image, "topright", self.value, self.font, BLACK, self.image.get_width() - 5, 5)
-            self.image.blit(self.slider_img, self.slider_rect)
+            # self.image.fill(self.color)
+            write(self.surf, "topleft", self.text, self.font, BLACK, self.rect.x + 5, self.rect.y + 5, tex=True)
+            write(self.surf, "topright", self.value, self.font, BLACK, self.rect.x + self.image.width - 5, self.rect.y, tex=True)
+            self.surf.blit(self.slider_img, self.slider_rect)
 
 
 def update_and_poll_widgets():
@@ -713,7 +722,7 @@ def draw_and_update_widgets():
         if widget.visible_when is None:
             if hasattr(widget, "draw") and not widget.disabled:
                 widget.draw()
-            if hasattr(widget, "update"):
+            if hasattr(widget, "update") and not widget.disabled:
                 widget.update()
         else:
             if widget.visible_when():
@@ -730,8 +739,8 @@ def draw_and_update_widgets():
                             tooltip_data.append(td)
                     else:
                         widget.last_hover = ticks()
-    for img, pos, dest in tooltip_data:
-        dest.blit(img, pos)
+    # for img, pos, dest in tooltip_data:
+    #     dest.blit(img, pos)
     for cursor, cond in _eng.cursors:
         if cond() and pygame.mouse.get_cursor() != cursor:
             pygame.mouse.set_cursor(cursor)
