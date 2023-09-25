@@ -51,6 +51,8 @@ LIGHT_GREEN =   (  0, 255,   0, 255)
 SLIME_GREEN =   (101, 255,   0, 255)
 MINT =          (186, 227, 209, 255)
 TURQUOISE =     ( 64, 224, 208, 255)
+AQUAMARINE =    ( 15,  99, 109, 255)
+SLIMISH =       ( 88, 199, 151, 255)
 YELLOW =        (255, 255,   0, 255)
 YELLOW_ORANGE = (255, 174,  66, 255)
 SKIN_COLOR =    (255, 219, 172, 255)
@@ -62,6 +64,8 @@ SKY_BLUE =      (220, 248, 255, 255)
 LIGHT_BLUE =    (137, 209, 254, 255)
 SMOKE_BLUE =    (154, 203, 255, 255)
 DARK_BLUE =     (  0,   0,  50, 255)
+NAVY_BLUE =     ( 32,  42,  68, 255)
+LAPIS_BLUE =    ( 49,  53,  92, 225)
 BLUE =          (  0,   0, 200, 255)
 PURPLE =        (153,  50, 204, 255)
 DARK_PURPLE =   ( 48,  25,  52, 255)
@@ -72,6 +76,7 @@ LIGHT_BROWN =   (149,  85,   0, 255)
 DARK_BROWN =    (101,  67,  33, 255)
 PINK =          (255, 192, 203, 255)
 CREAM =         pygame.Color("#F8F0C6")
+ALPHA_GRAY =    lambda x: (80, 80, 80, x)
 
 # other constants
 INF = "\u221e"  # infinity symbol (unicode)
@@ -80,6 +85,7 @@ orthogonal_projection_matrix = array([
     [0, 1, 0],
     [0, 0, 0]
 ])
+resolutions = [(640 * m, 360 * m) for m in range(1, 6)]
 
 
 def get_rotation_matrix_x(angle_x):
@@ -125,6 +131,41 @@ def aaellipse(width, height, color=BLACK):
 
 
 # functions
+def draw_line(ren, color, p1, p2):
+    ren.draw_color = color
+    ren.draw_line(p1, p2)
+
+
+def draw_rect(ren, color, rect):
+    ren.draw_color = color
+    ren.draw_rect(rect)
+
+
+def fill_rect(ren, color, rect):
+    ren.draw_color = color
+    ren.fill_rect(rect)
+
+
+def draw_quad(ren, color, p1, p2, p3, p4):
+    ren.draw_color = color
+    ren.draw_quad(p1, p2, p3, p4)
+
+
+def fill_quad(ren, color, p1, p2, p3, p4):
+    ren.draw_color = color
+    ren.fill_quad(p1, p2, p3, p4)
+
+
+def draw_triangle(ren, color, p1, p2, p3):
+    ren.draw_color = color
+    ren.draw_triangle(p1, p2, p3)
+
+
+def fill_triangle(ren, color, p1, p2, p3):
+    ren.draw_color = color
+    ren.fill_triangle(p1, p2, p3)
+
+
 def mult_matrix(a, b):
     a_rows = len(a)
     a_cols = len(a[0])
@@ -162,22 +203,28 @@ def color_diff_euclid(c1, c2):
     return dist
 
 
-def palettize_image(image, palette, step=1):
-    ret = pygame.Surface(image.get_size(), pygame.SRCALPHA)
-    if isinstance(palette, pygame.Surface):
-        palette = [palette.get_at((x, 0)) for x in range(palette.get_width())]
-    for y in range(0, image.get_height(), step):
-        for x in range(0, image.get_width(), step):
-            c1 = image.get_at((x, y))
-            diffs = {tuple(c): color_diff_euclid(c1, c) for c in palette}
-            pair = (None, float("inf"))
-            for color, diff in diffs.items():
-                if diff < pair[1]:
-                    pair = (color, diff)
-            color = pair[0]
-            #pygame.draw.rect(ret, color, (x, y, step, step))
-            pygame.draw.rect()
-    return ret
+def palettize_image(image, palette):
+    img = pygame.Surface(image.get_size(), pygame.SRCALPHA)
+    palette = imgload("assets", "Images", "Palettes", "sunset.png")
+    colors = [palette.get_at((x, 0)) for x in range(palette.get_width())]
+    # colors = [(0, 0, 128, 255), (194, 178, 128, 255), (0, 0, 0, 255), (137, 207, 240, 255)]
+    for y in range(img.get_height()):
+        for x in range(img.get_width()):
+            rgba = tuple(img.get_at((x, y)))
+            rgb = rgba[:3]
+            if rgb in [(1, 0, 0), (0, 1, 0), (0, 0, 1)] and rgba[-1] == 0:
+                img.set_at((x, y), (0, 0, 0, 0))
+                continue
+            if rgba == (0, 0, 0, 0):
+                continue
+            min_ = (float("inf"), None)
+            for color in colors:
+                color = color[:3]
+                diff = color_diff_euclid(rgb, color)
+                if diff < min_[0]:
+                    min_ = (diff, color)
+            img.set_at((x, y), min_[1])
+    return img
 
 
 def get_rect_anim(size, border_radius=10, border_width=2, color=BLACK, colorkey_color=RED):
@@ -388,6 +435,18 @@ def distance(rect1, rect2):
         return hypot(abs(rect1[0] - rect2[0]), abs(rect1[1] - rect2[1]))
 
 
+def centroid(vertices):
+    return [sum([v[i] for v in vertices]) / len(vertices) for i in range(3)]
+
+
+def average_z(vertices):
+    return sum([v[2] for v in vertices]) / len(vertices)
+
+
+def distance_ndim(vertex):
+    return sqrt(sum([(vertex[i]) ** 2 for i in range(len(vertex))]))
+
+
 def center_window():
     os.environ["SDL_VIDEO_CENTERED"] = "1"
 
@@ -398,9 +457,6 @@ def point_in_mask(point, mask, rect):
         return mask.get_at(pos_in_mask)
     return False
 
-
-def scalex(img, ratio):
-    return pygame.transform.scale(img, [int(s * ratio) for s in img.get_size()])
 
 
 def shrink2x(img):
@@ -430,9 +486,9 @@ def imgload(*path_, after_func="convert_alpha", colorkey=None, frames=None, whit
             ret.append(ret[end_frame])
     if isinstance(ret, list):
         for i, r in enumerate(ret):
-            ret[i] = rotate(scalex(getattr(r, after_func)() if after_func is not None else r, scale), rotation)
+            ret[i] = rotate(pygame.transform.scale_by(getattr(r, after_func)() if after_func is not None else r, scale), rotation)
     elif isinstance(ret, pygame.Surface):
-        ret = rotate(scalex(getattr(ret, after_func)() if after_func is not None else ret, scale), rotation)
+        ret = rotate(pygame.transform.scale_by(getattr(ret, after_func)() if after_func is not None else ret, scale), rotation)
     return ret
 
 
@@ -529,7 +585,7 @@ def invert_rgb(rgb):
 
 
 def pg_to_pil(pg_img):
-    return PIL.Image.frombytes("RGBA", pg_img.get_size(), pygame.image.tostring(pg_img, "RGBA"))
+    return PIL.Image.frombytes("RGBA", pg_img.get_size(), pygame.image.tobytes(pg_img, "RGBA"))
 
 
 def pg_rect_to_pil(pg_rect):
@@ -547,15 +603,15 @@ def rgb_mult(color, factor):
 
 
 def img_mult(img, mult, type_=1):
-    t = epoch()
+    # t = epoch()
     if type_ == 1:
         pil_img = pg_to_pil(img)
         enhancer = PIL.ImageEnhance.Brightness(pil_img)
         pil_img = enhancer.enhance(0.5)
-        data = pil_img.tobytes()
+        data = pil_img.tostring()
         size = pil_img.size
         mode = pil_img.mode
-        return pygame.image.fromstring(data, size, mode).convert_alpha()
+        return pygame.image.frombytes(data, size, mode).convert_alpha()
     elif type_ == 2:
         ret_img = img.copy()
         for y in range(img.get_height()):
@@ -626,31 +682,81 @@ bar_rgb = (lerp(RED, ORANGE, 34) + lerp(ORANGE, YELLOW, 33) + lerp(YELLOW, LIGHT
 
 
 # classes
+class CursorTrail:
+    def __init__(self, surf, depth):
+        self.surf = surf
+        self.depth = depth
+        self.data = []
+        self.w, self.h = 10, 10
+        for i in range(depth):
+            img = pygame.Surface((self.w, self.h), pygame.SRCALPHA)
+            pygame.gfxdraw.filled_polygon(img, ((self.w / 2, 0), (self.w, self.h / 2), (self.w / 2, self.w), (0, self.h / 2)), WHITE)
+            mult = i / depth
+            # img = pygame.transform.scale_by(img, (mult * self.w, mult * self.h))
+            try:
+                img = Texture.from_surface(self.surf, img)
+            except pygame._sdl2.sdl2.error:
+                pass
+            else:
+                self.data.append([img, 0, 0, img.get_rect()])
+
+    def update(self):
+        self.draw()
+
+    def draw(self):
+        mouse = pygame.mouse.get_pos()
+        for index in range(len(self.data)):
+            img, x, y, rect = self.data[index]
+            self.data[index][1] += (mouse[0] - x) * index / self.depth
+            self.data[index][2] += (mouse[1] - y) * index / self.depth
+            rect.x = self.data[index][1]
+            rect.y = self.data[index][2]
+            self.surf.blit(img, rect)
+
+
 class Crystal:
-    def __init__(self, renderer, vertices, point_colors, connections, fills, origin, mult, radius, xa=0, ya=0, za=0, xav=0, yav=0, zav=0):
+    def __init__(self, renderer, vertices, point_colors, connections, fills, origin, mult, radius, xa=0, ya=0, za=0, xav=0, yav=0, zav=0, rotate=True, fill_as_connections=False, normals=False, normalize=False, **kwargs):
+        self.__dict__.update(kwargs)
         self.renderer = renderer
-        self.vertices = array(vertices)
+        self.normalize = normalize
+        if isinstance(vertices, str):
+            self.get_vertices_from_obj(vertices)
+            self.normals = True
+        else:
+            self.vertices = array(vertices)
+            self.point_colors = point_colors
+            self.fills = fills
+            self.normals = False
         self.r = radius
-        self.point_colors = point_colors
-        self.circles = [Texture.from_surface(self.renderer, circle(self.r, color)) for color in point_colors]
+        self.default_circle = Texture.from_surface(self.renderer, circle(5, RED))
+        self.circle_textures = [Texture.from_surface(self.renderer, circle(self.r, color)) for color in self.point_colors]
         self.connections = connections
-        self.fills = fills
+        if False:
+            self.connections = [[YELLOW] + f[1:] for f in fills]
         self.ox, self.oy = origin
         self.m = mult
         self.xa, self.ya, self.za = xa, ya, za
         self.xav, self.yav, self.zav = xav, yav, zav
+        self.rotate = rotate
+        self.fill_as_connections = fill_as_connections
+        # self.width = max([x[0] for x in self.vertices]) - min([x[0] for x in self.vertices]) * self.m
+        # self.height = max([x[1] for x in self.vertices]) - min([x[1] for x in self.vertices]) * self.m
+        # self.depth = max([x[2] for x in self.vertices]) - min([x[2] for x in self.vertices]) * self.m
 
     def update(self):
         self.draw()
 
     def draw(self):
         self.points = []
+        self.circles = []
         self.updated_vertices = []
-        for index, vertex in enumerate(self.vertices):
-            # rotate
+        self.updated_normals = []
+        # rotate
+        if self.rotate:
             self.xa += self.xav
             self.ya += self.yav
             self.za += self.zav
+        for index, vertex in enumerate(self.vertices):
             # rotate the matrices
             vertex = vertex.dot(get_rotation_matrix_x(self.xa))
             vertex = vertex.dot(get_rotation_matrix_y(self.ya))
@@ -660,23 +766,137 @@ class Crystal:
             pos = vertex.dot(orthogonal_projection_matrix)
             x, y = self.m * pos[0] + self.ox, self.m * pos[1] + self.oy
             rect = pygame.Rect(x - self.r, y - self.r, self.r * 2, self.r * 2)
-            self.renderer.blit(self.circles[index], rect)
             self.points.append((x, y))
+            self.circles.append([index, rect])
+        if self.normals:
+            for index, vector in enumerate(self.vertex_normals):
+                # rotate the matrices
+                vector = vector.dot(get_rotation_matrix_x(self.xa))
+                vector = vector.dot(get_rotation_matrix_y(self.ya))
+                vector_normal = vector.dot(get_rotation_matrix_z(self.za))
+                self.updated_normals.append(vector_normal)
+
+        self.fill_vertices = [[self.updated_vertices[x] if isinstance(x, int) else x for x in data] for data in self.fills]
+        self.fill_vertices = sorted(self.fill_vertices, key=lambda x: average_z(x[1:]))
+        self.fill_data = []
+        for index, data in enumerate(self.fill_vertices):
+            # init lel
+            color = data[0]
+            d = [color]
+            for vertex in data[1:]:
+                # project the matrices
+                pos = vertex.dot(orthogonal_projection_matrix)
+                x, y = self.m * pos[0] + self.ox, self.m * pos[1] + self.oy
+                rect = pygame.Rect(x - self.r, y - self.r, self.r * 2, self.r * 2)
+                # self.renderer.blit(self.default_circle, rect)
+                d.append([x, y])
+            self.fill_data.append(d)
+
+        for data in self.fill_data:
+            if self.fill_as_connections and False:
+                self.connect_points(*data, index=False)
+            else:
+                self.fill_points(*data)
         for connection in self.connections:
             self.connect_points(*connection)
-        for fill in self.fills:
-            self.fill_points(*fill)
+        for circle in self.circles:
+            with suppress(IndexError):
+                self.draw_circle(*circle)
 
-    def connect_points(self, line_color, i, j):
+    def draw_circle(self, i, rect):
+        self.renderer.blit(self.circle_textures[i], rect)
+
+    def connect_points(self, line_color, *points, index=True):
         self.renderer.draw_color = line_color
-        self.renderer.draw_line(self.points[i], self.points[j])
+        for i in range(len(points)):
+            j = points[(i + 1) if i < len(points) - 1 else 0]
+            i = points[i]
+            if index:
+                i, j = self.points[i], self.points[j]
+            self.renderer.draw_line(i, j)
 
-    def fill_points(self, fill_color, *points):
-        self.renderer.draw_color = fill_color
+    def fill_points(self, data, *points):
+        # setup
+        fill_color = data[0] if 0 < len(data) else False
+        outline_color = data[1] if 1 < len(data) else False
+        # normals
+        if self.normals:
+            normal_index = data[2] if 2 < len(data) else False
+            normal = self.updated_normals[normal_index]
+            vec = pygame.math.Vector3(list(normal))
+            camera = pygame.math.Vector3(0, 0, 1)
+            dot = vec.dot(camera)
+            fill_color = [0] + [int((dot + 1) / 2 * 255)] + [0, 255]
+        # filling
         if len(points) == 3:
-            self.renderer.fill_triangle(*[self.points[i] for i in points])
+            if fill_color:
+                fill_triangle(self.renderer, fill_color, *points)
+            if outline_color:
+                draw_triangle(self.renderer, outline_color, *points)
         elif len(points) == 4:
-            self.renderer.fill_quad(*[self.points[i] for i in points])
+            if fill_color:
+                fill_quad(self.renderer, fill_color, *points)
+            if outline_color:
+                draw_quad(self.renderer, outline_color, *points)
+
+        # draw the normals (debug)
+        if self.normals:
+            farther = normal * 1.4
+            pos = normal.dot(orthogonal_projection_matrix)
+            x, y = 200 * pos[0] + self.ox, 200 * pos[1] + self.oy
+            orect = pygame.Rect(x - self.r, y - self.r, self.r * 3, self.r * 3)
+            pos = farther.dot(orthogonal_projection_matrix)
+            x, y = 200 * pos[0] + self.ox, 200 * pos[1] + self.oy
+            rect = pygame.Rect(x - self.r, y - self.r, self.r * 3, self.r * 3)
+            self.renderer.draw_color = fill_color
+            self.renderer.draw_line(orect.topleft, rect.topleft)
+
+    def get_vertices_from_obj(self, p):
+        self.vertices = []
+        self.fills = []
+        self.vertex_normals = []
+        self.updated_normals = []
+        min_ = max_ = 0
+        with open(p) as f:
+            for line in f.readlines():
+                split = line.split(" ")
+                i = split[0]
+                # vector
+                if i == "v":
+                    vertex = [float(x) for x in split[1:] if x]
+                    # length = sqrt(abs(vertex[0] ** 2) + abs(vertex[1] ** 2) + abs(vertex[2] ** 2))
+                    for x in vertex:
+                        if x > max_:
+                            max_ = x
+                        elif x < min_:
+                            min_ = x
+                        if abs(x) > max_:
+                            max_ = x
+                    self.vertices.append(vertex)
+                # face
+                elif i == "f":
+                    face = []
+                    datae = [x for x in split[1:] if x]
+                    for data in datae:
+                        if "//" in data:
+                            vertex, normal = [int(x) - 1 for x in data.split("//")]
+                        else:
+                            vertex, uv, normal = [int(x) - 1 for x in data.split("/")]
+                        face.append(vertex)
+                    face.insert(0, [[rand(80, 120)] * 3 + [255], False, normal])
+                    if len(face) <= 5:
+                        self.fills.append(face)
+                # vector normals
+                elif i == "vn":
+                    normal_coords = [float(x) for x in split[1:]]
+                    self.vertex_normals.append(normal_coords)
+        self.vertex_normals = array(self.vertex_normals)
+        # self.point_colors = [(255, 0, 0, 255)] * len(self.vertices)
+        self.point_colors = []
+        if self.normalize:
+            # self.vertices = [[(x - min_) / (max_ - min_) for x in vertex] for vertex in self.vertices]
+            self.vertices = [[x / max_ for x in vertex] for vertex in self.vertices]
+        self.vertices = array(self.vertices)
 
 
 class CImage(Image):
@@ -694,10 +914,6 @@ class CImage(Image):
 
 
 class SmartVector:
-    # @property
-    # def _rect(self):
-    #     return pygame.Rect(self.x, self.y, *self.size)
-
     @property
     def left(self):
         return self.x
@@ -866,14 +1082,14 @@ class SmartSurface(pygame.Surface):
         return f"{type(self).__name__}(size={self.get_size()}, flags={hex(self.get_flags())})"
 
     def __reduce__(self):
-        return (str, (self._tostring,))
+        return (str, (self._tobytes,))
 
     def __deepcopy__(self, memo):
-        return self._tostring
+        return self._tobytes
 
     @property
-    def _tostring(self, mode="RGBA"):
-        return pygame.image.tostring(self, mode)
+    def _tobytes(self, mode="RGBA"):
+        return pygame.image.tobytes(self, mode)
 
     @classmethod
     def from_surface(cls, surface):
@@ -883,7 +1099,7 @@ class SmartSurface(pygame.Surface):
 
     @classmethod
     def from_string(cls, string, size, format="RGBA"):
-        return cls.from_surface(pygame.image.fromstring(string, size, format))
+        return cls.from_surface(pygame.image.frombytes(string, size, format))
 
     def cblit(self, surf, pos, anchor="center"):
         rect = surf.get_rect()
@@ -904,25 +1120,16 @@ class SmartMask:
         return repr(self.mask)
 
     def __deepcopy__(self, memo):
-        return pygame.image.tostring(self.surf, "RGBA")
+        return pygame.image.tobytes(self.surf, "RGBA")
 
     def __reduce__(self):
-        return (str, (pygame.image.tostring(self.surf, "RGBA",)))
+        return (str, (pygame.image.tobytes(self.surf, "RGBA",)))
 
 
-class SmartSprite:
-    @property
-    def rect(self):
-        return pygame.Rect(self.x, self.y, *self.image.get_size())
-
-
-class SmartGroup(pygame.sprite.Group):
-    def index(self, val):
-        return self.sprites().index(val)
-
+class SmartGroup(list):
     def _function(self, attr):
         def _func():
-            for spr in self.sprites():
+            for spr in self:
                 getattr(spr, attr, lambda_none)()
         return _func
 

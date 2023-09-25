@@ -1,4 +1,4 @@
-from math import floor, ceil, sqrt, hypot, sin, cos, tan, asin, acos, atan, atan2, degrees, radians, pi, e, log2, log
+from math import floor, ceil, sqrt, hypot, sin, cos, tan, asin, acos, atan, atan2, degrees, radians, pi, e, log, log2
 from random import randint as rand, uniform as randf, gauss, choice, choices, Random
 from contextlib import suppress, redirect_stdout, nullcontext, closing
 from types import SimpleNamespace as EmptyObject, FunctionType
@@ -10,7 +10,6 @@ from itertools import chain, product
 from multiprocessing import Process
 from difflib import SequenceMatcher
 from importlib import import_module
-from send2trash import send2trash
 from copy import copy, deepcopy
 from psutil import cpu_percent
 from inspect import getsource

@@ -6,14 +6,12 @@ from pandas.io.clipboard import clipboard_get as pd_clipboard_get
 import operator as op
 import numpy as np
 import inspect
-import tkinter
 import sys
 import os
 import io
 import random
 import platform
 import time
-import pycountry
 import requests
 import string
 import json
@@ -34,18 +32,46 @@ INF = "\u221e"  # infinity
 DEG = "\u00B0"  # celcius
 BULLET = "⁍"
 int_to_word = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"]
-pritn = print   # because
-prrint = print  # because
-pirnt = print   # becase
-PRINT = print   # because
+pritn = print   # be cau sè
+prrint = print  # be cau sè
+pirnt = print   # be cau sè
+PRINT = print   # be cau sè
+pint = print    # be cau sè
 epoch = time.time
 lambda_none = lambda *a, **kwa: None
 lambda_ret = lambda x: x
 funny_words = {"lmao", "lmoa", "lol", "lol get rekt"}
 gf_combo_names = ["super", "power", "ninja", "turbo", "neo", "ultra", "hyper", "mega", "multi", "alpha", "meta", "extra", "uber", "prefix"]
+steel_colors = []
+k_b = 1.380649 * 10 ** -23
+n_a = 6.02214076 * 10 ** 23
+gas_constant = k_b * n_a
 
 
 # functions
+def genlog(t, a, k, c, q, b, v):
+    return a + (k - a) / (c + q * e ** (-b * t)) ** (1 / v)
+
+
+def sustainability(km_per_l, rho, molar_mass, ratio):
+    kg = 1 / km_per_l * rho
+    moles = (kg * 1000) / molar_mass
+    moles *= ratio
+    return moles
+
+
+def dot_product_3d(p1, p2):
+    ab = p1[0] * p2[0] + p1[1] * p2[1] + p1[2] * p2[2]
+    mag1 = sqrt(p1[0] ** 2 + p1[1] ** 2 + p1[2] ** 2)
+    mag2 = sqrt(p2[0] ** 2 + p2[1] ** 2 + p2[2] ** 2)
+    theta = acos(ab / (mag1 * mag2)) * (180 / pi)
+    return theta
+
+
+def diff(src, dest):
+    return (dest[0] - src[0], dest[1] - src[1])
+
+
 def semicircle(x):
     return sqrt(1 - x ** 2)
 
@@ -339,10 +365,6 @@ def rel_heat(t, w):
     return round(1.41 - 1.162 * w + 0.98 * t + 0.0124 * w ** 2 + 0.0185 * w * t)
 
 
-def iso_countries():
-    return [country.alpha_2 for country in pycountry.countries]
-
-
 def cform(str_):
     ret = ""
     for index, char in enumerate(str_):
@@ -625,6 +647,17 @@ def profile(func):
 
 
 # classes
+class DictWithoutException(dict):
+    def __getitem__(self, item):
+        try:
+            return super().__getitem__(item)
+        except KeyError:
+            return DictWithoutException()
+
+    def __repr__(self):
+        return f"DWI({dict(self)})"
+
+
 class Platform:
     os = platform.system().lower()
 

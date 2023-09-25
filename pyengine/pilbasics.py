@@ -70,7 +70,7 @@ def pil_to_pg(pil_img):
     data = pil_img.tobytes()
     size = pil_img.size
     mode = pil_img.mode
-    return pygame.image.fromstring(data, size, mode).convert_alpha()
+    return pygame.image.fromstring(data, size, mode)
 
 
 def pil_rect2pg(pil_rect):

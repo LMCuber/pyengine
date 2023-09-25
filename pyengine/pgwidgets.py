@@ -17,7 +17,7 @@ class _Widget:
         if text is not None:
             self.text = format_text(text)
 
-    def __init__(self, image, surf, visible_when, friends, pos, anchor, width, height, exit_command, disabled, disable_type, template, child, add, special_flags, tooltip, appends, *args, **kwargs):
+    def __init__(self, image, surf, visible_when, friends, pos, anchor, width, height, exit_command, disabled, disable_type, template, child, add, special_flags, tooltip, appends, as_child, *args, **kwargs):
         self.width = width if width is not None else self.image.get_width()
         self.height = height if height is not None else self.image.get_height()
         self.tooltip = tooltip
@@ -51,6 +51,7 @@ class _Widget:
             self.replace_og(img)
         self.visible_when = visible_when
         self.zooming = False
+        self.as_child = as_child
         if appends is not None:
             for append in appends:
                 append.append(self)
@@ -62,7 +63,7 @@ class _Widget:
     def init_size(self, width=None, height=None, text=None):
         w = width if width is not None else self.font.size(text)[0] + 5
         h = height if height is not None else self.font.size(text)[1] + 5
-        self.image = pygame.Surface((w, h))
+        self.image = pygame.Surface((w, h), pygame.SRCALPHA)
 
     def _exec_command(self, command, after=None, *args, **kwargs):
         if callable(command):
@@ -127,6 +128,8 @@ class _Widget:
 
     def draw(self):
         self.surf.blit(self.image, self.rect)
+        if hasattr(self, "icon_img"):
+            self.surf.blit(self.icon_img, self.icon_rect)
 
     def add_friend(self, fr):
         self.friends.append(fr)
@@ -150,48 +153,131 @@ class ButtonBehavior:
         else:
             self.image.alpha = 255
 
-    def click(self):
-        self.command()
+    def click(self, left=True):
+        if left:
+            self.command(*[self] if self.pass_self else [])
+        else:
+            self.right_command(*[self] if self.pass_self_right else [])
         if self.click_effect:
             Thread(target=self.zoom, args=["out"]).start()
 
 
 class _Overwriteable:
     def overwrite(self, text):
-        # w, h = [5 + size + 5 for size in self.font.size(str(text))]
-        self.init_size(self.width, self.height, text)
+        w, h = [3 + size + 3 for size in self.font.size(str(text))]
+        self.init_size(w, h, text)
         if isinstance(self, Checkbox):
             w += self.box.get_width() + 10
         self.image.fill(self.bg_color)
         if isinstance(self, Checkbox):
-            write(self.image, "topleft", text, self.font, BLACK, 30, 5)
+            write(self.image, "topleft", text, self.font, self.text_color, 30, 5)
         else:
-            write(self.image, "center", text, self.font, BLACK, *[s / 2 for s in self.image.get_size()])
-        self.replace_og(self.image)
+            write(self.image, "center", text, self.font, self.text_color, *[s / 2 for s in self.image.get_size()])
+        self.image = Texture.from_surface(self.surf, self.image)
+        # self.replace_og(self.image)
         self.rect = self.image.get_rect(center=self.rect.center)
+
+    def write_text(self, text, font, text_color, text_orien):
+        if text_orien == "center":
+            write(self.image, "center", text, font, text_color, *[s / 2 for s in self.image.get_size()])
+        elif text_orien == "left":
+            write(self.image, "midleft", text, font, text_color, 5, self.image.get_height() / 2)
 
 
 class Button(_Widget, _Overwriteable, ButtonBehavior):
-    def __init__(self, surf, text, command, width=None, height=None, pos=_DEF_WIDGET_POS, text_color=BLACK, bg_color=WIDGET_GRAY, anchor="center", exit_command=None, visible_when=None, font=None, tooltip_font=None, friends=None, click_effect=False, disabled=False, disable_type=False, template=None, add=True, special_flags=None, tooltip=None, appends=None, *args, **kwargs):
+    def __init__(self, surf, text, command, pass_self=False, right_command=None, pass_self_right=False, width=None, height=None, pos=_DEF_WIDGET_POS, text_color=BLACK, text_orien="center", bg_color=WIDGET_GRAY, anchor="center", exit_command=None, visible_when=None, font=None, tooltip_font=None, friends=None, click_effect=False, disabled=False, disable_type=False, template=None, add=True, special_flags=None, tooltip=None, appends=None, as_child=False, *args, **kwargs):
         _Widget.__pre_init__(self, font, text)
         self.text = text
         self.bg_color = bg_color
         self.click_effect = click_effect
         self.init_size(width, height, text)
         self.image.fill(bg_color)
-        write(self.image, "center", self.text, self.font, text_color, *[s / 2 for s in self.image.get_size()])
+        self.write_text(self.text, self.font, text_color, text_orien)
         self.rect = self.image.get_rect()
         self.command = command
-        _Widget.__init__(self, self.image, surf, visible_when, friends, pos, anchor, width, height, exit_command, disabled, disable_type, template, type(self), add, special_flags, tooltip, appends)
+        self.pass_self = pass_self
+        self.right_command = right_command
+        self.pass_self_right = pass_self_right
+        _Widget.__init__(self, self.image, surf, visible_when, friends, pos, anchor, width, height, exit_command, disabled, disable_type, template, type(self), add, special_flags, tooltip, appends, as_child)
+
+    def process_event(self, event):
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            if event.button == 1:
+                if self.rect.collidepoint(pygame.mouse.get_pos()):
+                    self.click()
+
+            elif event.button == 3:
+                if self.right_command is not None:
+                    if self.rect.collidepoint(pygame.mouse.get_pos()):
+                        self.click(left=False)
+
+
+class ComboBox(_Widget, _Overwriteable, ButtonBehavior):
+    def __init__(self, surf, text, combos, command=lambda_none, width=None, height=None, pos=_DEF_WIDGET_POS, text_color=BLACK, bg_color=WIDGET_GRAY, bg_colors=None, hover_color=YELLOW, extension_offset=(0, 0), anchor="center", exit_command=None, visible_when=None, font=None, tooltip_font=None, friends=None, click_effect=False, disabled=False, disable_type=False, template=None, add=True, special_flags=None, tooltip=None, appends=None, as_child=False, *args, **kwargs):
+        _Widget.__pre_init__(self, font, text)
+        self.text = text
+        self.current = text
+        self.command = command
+        self.text_color = text_color
+        self.bg_color = bg_color
+        self.bg_colors = bg_colors
+        self.hover_color = hover_color
+        self.click_effect = click_effect
+        self.init_size(width, height, text)
+        self.image.fill(bg_color)
+        write(self.image, "center", self.text, self.font, text_color, *[s / 2 for s in self.image.get_size()])
+        self.rect = self.image.get_rect()
+        self.extension_offset = extension_offset
+        # combos
+        self.combo_width = max(font.size(combo)[0] + 6 for combo in combos)
+        self.combo_height = sum(font.size(combo)[1] + 6 for combo in combos)
+        self.combo_size = (self.combo_width, self.combo_height)
+        self.combo_image = pygame.Surface((self.combo_width, self.combo_height))
+        self.combo_image.fill(bg_color)
+        self.combo_rects = {}
+        x = y = 0
+        for i, combo in enumerate(combos):
+            w = self.combo_width
+            h = font.size(combo)[1]
+            combo_rect = pygame.Rect(self.rect.x + x, self.rect.y + y, w, h + 6)
+            self.combo_image.fill(bg_color if bg_colors is None else bg_colors[i], combo_rect)
+            write(self.combo_image, "topleft", combo, font, text_color, x + 3, y + 3)
+            self.combo_rects[combo] = combo_rect
+            y += combo_rect.height
+        self.combo_image = Texture.from_surface(surf, self.combo_image)
+        self.combo_rect = self.combo_image.get_rect(topleft=self.rect.topleft)
+        self.real_combo_rects = None
+        self.extended = False
+        # last init
+        _Widget.__init__(self, self.image, surf, visible_when, friends, pos, anchor, width, height, exit_command, disabled, disable_type, template, type(self), add, special_flags, tooltip, appends, as_child)
 
     def process_event(self, event):
         if is_left_click(event):
             if self.rect.collidepoint(pygame.mouse.get_pos()):
-                self.click()
+                self.extended = not self.extended
+            if self.extended and self.real_combo_rects is not None:
+                for name, rect in self.real_combo_rects.items():
+                    if rect.collidepoint(pygame.mouse.get_pos()):
+                        self.overwrite(name)
+                        self.extended = False
+                        self.current = name
+                        self.command(name)
 
+    def update(self):
+        if self.extended:
+            self.reload_combo_rects()
+            self.surf.blit(self.combo_image, self.real_combo_rect)
+            for name, rect in self.real_combo_rects.items():
+                if rect.collidepoint(pygame.mouse.get_pos()):
+                    draw_rect(self.surf, self.hover_color, rect)
+
+    def reload_combo_rects(self):
+        xo, yo = self.extension_offset[0] * self.combo_width, self.extension_offset[1] * self.combo_height
+        self.real_combo_rects = {name: pygame.Rect(self.rect.x + rect.x + xo, self.rect.y + rect.y + yo, *rect.size) for name, rect in self.combo_rects.items()}
+        self.real_combo_rect = pygame.Rect(self.rect.x + self.combo_rect.x + xo, self.rect.y + self.combo_rect.y + yo, *self.combo_rect.size)
 
 class ToggleButton(_Widget, ButtonBehavior, _Overwriteable):
-    def __init__(self, surf, cycles, pos=_DEF_WIDGET_POS, command=None, width=None, height=None, bg_color=WIDGET_GRAY, text_color=BLACK, anchor="center", exit_command=None, visible_when=None, font=None, tooltip_font=None, friends=None, disabled=False, disable_type=False, template=None, add=True, special_flags=None, tooltip=None, appends=None, *args, **kwargs):
+    def __init__(self, surf, cycles, pos=_DEF_WIDGET_POS, command=None, width=None, height=None, bg_color=WIDGET_GRAY, text_color=BLACK, anchor="center", exit_command=None, visible_when=None, font=None, tooltip_font=None, friends=None, disabled=False, disable_type=False, template=None, add=True, special_flags=None, tooltip=None, appends=None, as_child=False, *args, **kwargs):
         _Widget.__pre_init__(self, font)
         self.command = command
         self.bg_color = bg_color
@@ -203,7 +289,7 @@ class ToggleButton(_Widget, ButtonBehavior, _Overwriteable):
         self.image.fill(self.bg_color)
         write(self.image, "center", text, self.font, text_color, *[s / 2 for s in self.image.get_size()])
         self.rect = self.image.get_rect()
-        _Widget.__init__(self, self.image, surf, visible_when, friends, pos, anchor, width, height, exit_command, disabled, disable_type, template, type(self), add, special_flags, tooltip, appends)
+        _Widget.__init__(self, self.image, surf, visible_when, friends, pos, anchor, width, height, exit_command, disabled, disable_type, template, type(self), add, special_flags, tooltip, appends, as_child)
 
     @property
     def option(self):
@@ -222,18 +308,18 @@ class ToggleButton(_Widget, ButtonBehavior, _Overwriteable):
 
 
 class Label(_Widget, _Overwriteable):
-    def __init__(self, surf, text, pos=_DEF_WIDGET_POS, width=None, height=None, bg_color=WIDGET_GRAY, text_color=BLACK, anchor="center", exit_command=None, visible_when=None, font=None, tooltip_font=None, friends=None, disabled=False, disable_type=False, template=None, add=True, special_flags=None, tooltip=None, appends=None, *args, **kwargs):
+    def __init__(self, surf, text, pos=_DEF_WIDGET_POS, width=None, height=None, bg_color=WIDGET_GRAY, text_color=BLACK, text_orien="center", anchor="center", exit_command=None, visible_when=None, font=None, tooltip_font=None, friends=None, disabled=False, disable_type=False, template=None, add=True, special_flags=None, tooltip=None, appends=None, as_child=False, *args, **kwargs):
         _Widget.__pre_init__(self, font, text)
         self.bg_color = bg_color
         self.init_size(width, height, text)
         self.image.fill(bg_color)
-        write(self.image, "center", self.text, self.font, text_color, *[s / 2 for s in self.image.get_size()])
+        self.write_text(self.text, self.font, text_color, text_orien)
         self.rect = self.image.get_rect()
-        _Widget.__init__(self, self.image, surf, visible_when, friends, pos, anchor, width, height, exit_command, disabled, disable_type, template, type(self), add, special_flags, tooltip, appends)
+        _Widget.__init__(self, self.image, surf, visible_when, friends, pos, anchor, width, height, exit_command, disabled, disable_type, template, type(self), add, special_flags, tooltip, appends, as_child)
 
 
 class Entry(_Widget):
-    def __init__(self, surf, title, command, width=None, height=None, max_chars=None, input_required=False, focus=True, keyboard=True, keyboard_map=None, key_font=None, joystick=None, func_args=None, text_color=BLACK, pos=_DEF_WIDGET_POS, start_command=None, anchor="center", default_text=None, exit_command=None, visible_when=None, font=None, tooltip_font=None, friends=None, error_command=None, disabled=False, disable_type=False, template=None, add=True, special_flags=None, tooltip=None, appends=None, *args, **kwargs):
+    def __init__(self, surf, title, command, width=None, height=None, max_chars=None, input_required=False, focus=True, keyboard=True, keyboard_map=None, key_font=None, joystick=None, func_args=None, text_color=BLACK, pos=_DEF_WIDGET_POS, start_command=None, anchor="center", default_text=None, exit_command=None, visible_when=None, font=None, tooltip_font=None, friends=None, error_command=None, disabled=False, disable_type=False, template=None, add=True, special_flags=None, tooltip=None, appends=None, as_child=False, *args, **kwargs):
         _Widget.__pre_init__(self, font)
         self.text = title
         self.max_chars = max_chars if max_chars is not None else float("inf")
@@ -267,7 +353,7 @@ class Entry(_Widget):
         self.focused = focus
         self.replacement = ""
         # super
-        _Widget.__init__(self, self.image, surf, visible_when, friends, pos, anchor, width, height, exit_command, disabled, disable_type, template, type(self), add, special_flags, tooltip, appends)
+        _Widget.__init__(self, self.image, surf, visible_when, friends, pos, anchor, width, height, exit_command, disabled, disable_type, template, type(self), add, special_flags, tooltip, appends, as_child)
 
     def init_keyboard(self):
         self.focused_key = "g"
@@ -332,7 +418,7 @@ class Entry(_Widget):
             else:
                 if event.type == pygame.KEYDOWN:
                     conds = {"up": event.key == pygame.K_UP, "down": event.key == pygame.K_DOWN, "left": event.key == pygame.K_LEFT, "right": event.key == pygame.K_RIGHT}
-                elif event.type == pygame.JOYBUTTONDONW:
+                elif event.type == pygame.JOYBUTTONDOWN:
                     conds = {"up": event.button == self.keyboard_map["up"], "down": event.button == self.keyboard_map["down"], "left": event.button == self.keyboard_map["left"], "right": event.button == self.keyboard_map["right"]}
                 if conds["up"]:
                     self.focused_key = sorted(self.keyboard_rects.items(), key=lambda x: (frect.y - x[1].y != self.s, abs(x[1].x - frect.x)))[0][0]
@@ -389,7 +475,7 @@ class Entry(_Widget):
 
 
 class MessageboxOkCancel(_Widget):
-    def __init__(self, surf, text, ok_command, no_ok_command=lambda_none, ok="OK", no_ok="CANCEL", width=None, height=None, pos=_DEF_WIDGET_POS, anchor="center", exit_command=None, visible_when=None, font=None, tooltip_font=None, friends=None, disabled=False, disable_type=False, template=None, add=True, special_flags=None, tooltip=None, appends=None, *args, **kwargs):
+    def __init__(self, surf, text, ok_command, no_ok_command=lambda_none, ok="OK", no_ok="CANCEL", width=None, height=None, pos=_DEF_WIDGET_POS, anchor="center", exit_command=None, visible_when=None, font=None, tooltip_font=None, friends=None, disabled=False, disable_type=False, template=None, add=True, special_flags=None, tooltip=None, appends=None, as_child=False, ok_joystick=None, *args, **kwargs):
         # base
         _Widget.__pre_init__(self, font, text)
         self.text_width = self.font.size(self.text)[0] + 10
@@ -401,19 +487,20 @@ class MessageboxOkCancel(_Widget):
         self.rect = self.image.get_rect()
         self.rect.center = pos
         self.commands = {"ok": ok_command, "no_ok": no_ok_command}
+        self.ok_joystick = ok_joystick
         # title
         write(self.image, "center", self.text, self.font, BLACK, self.image.get_width() / 2, self.image.get_height() / 4)
         # ok
-        write(self.image, "center", "OK", self.font, BLACK, self.image.get_width() / 4, self.image.get_height() / 4 * 3)
+        write(self.image, "center", ok, self.font, BLACK, self.image.get_width() / 4, self.image.get_height() / 4 * 3)
         # cancel
-        write(self.image, "center", "CANCEL", self.font, BLACK, self.image.get_width() / 4 * 3, self.image.get_height() / 4 * 3)
+        write(self.image, "center", no_ok, self.font, BLACK, self.image.get_width() / 4 * 3, self.image.get_height() / 4 * 3)
         # rects
         (self.image, BLACK, (self.image.get_width() // 2 - 2, 30, 4, 30))
         self.rects = {}
         self.rects["ok"] = pygame.Rect(self.rect.left, self.rect.top + 30, self.text_width // 2, 60)
         self.rects["no_ok"] = pygame.Rect(self.rect.left + self.text_width // 2, self.rect.top + 30, self.text_width, 60)
         # super
-        _Widget.__init__(self, self.image, surf, visible_when, friends, pos, anchor, width, height, exit_command, disabled, disable_type, template, type(self), add, special_flags, tooltip, appends)
+        _Widget.__init__(self, self.image, surf, visible_when, friends, pos, anchor, width, height, exit_command, disabled, disable_type, template, type(self), add, special_flags, tooltip, appends, as_child)
 
     def process_event(self, event):
         if event.type == pygame.KEYDOWN:
@@ -429,7 +516,7 @@ class MessageboxOkCancel(_Widget):
 
 
 class MessageboxOk(_Widget):
-    def __init__(self, surf, text, width, height, ok_command=lambda_none, ok="OK", pos=_DEF_WIDGET_POS, anchor="center", exit_command=None, visible_when=None, font=None, tooltip_font=None, friends=None, disabled=False, disable_type=False, template=None, add=True, special_flags=None, tooltip=None, appends=None, *args, **kwargs):
+    def __init__(self, surf, text, width, height, ok_command=lambda_none, ok="OK", pos=_DEF_WIDGET_POS, anchor="center", exit_command=None, visible_when=None, font=None, tooltip_font=None, friends=None, disabled=False, disable_type=False, template=None, add=True, special_flags=None, tooltip=None, appends=None, as_child=False, ok_joystick=None, *args, **kwargs):
         # base
         _Widget.__pre_init__(self, font, text)
         self.text_width = self.font.size(self.text)[0] + 10
@@ -441,6 +528,7 @@ class MessageboxOk(_Widget):
         self.rect = self.image.get_rect()
         self.rect.center = pos
         self.commands = {"ok": ok_command}
+        self.ok_joystick = ok_joystick
         # title
         write(self.image, "center", self.text, self.font, BLACK, self.image.get_width() / 2, self.image.get_height() / 4)
         # ok
@@ -449,7 +537,7 @@ class MessageboxOk(_Widget):
         self.rects = {}
         self.rects["ok"] = pygame.Rect(self.rect.left, self.rect.top + 30, self.text_width, 60)
         # super
-        _Widget.__init__(self, self.image, surf, visible_when, friends, pos, anchor, width, height, exit_command, disabled, disable_type, template, type(self), add, special_flags, tooltip, appends)
+        _Widget.__init__(self, self.image, surf, visible_when, friends, pos, anchor, width, height, exit_command, disabled, disable_type, template, type(self), add, special_flags, tooltip, appends, as_child)
 
     def process_event(self, event):
         if event.type == pygame.KEYDOWN:
@@ -463,9 +551,13 @@ class MessageboxOk(_Widget):
                     if rect.collidepoint(mouse):
                         self._exec_command(self.commands[k], "out destroy")
 
+        elif event.type == pygame.JOYBUTTONDOWN:
+            if event.button == self.ok_joystick:
+                self._exec_command(self.commands["ok"], "out destroy")
+
 
 class MessageboxError(_Widget):
-    def __init__(self, surf, text, pos=_DEF_WIDGET_POS, anchor="center", width=None, height=None, exit_command=None, visible_when=None, font=None, tooltip_font=None, friends=None, disabled=False, disable_type=False, template=None, add=True, special_flags=None, tooltip=None, appends=None, *args, **kwargs):
+    def __init__(self, surf, text, pos=_DEF_WIDGET_POS, anchor="center", width=None, height=None, exit_command=None, visible_when=None, font=None, tooltip_font=None, friends=None, disabled=False, disable_type=False, template=None, add=True, special_flags=None, tooltip=None, appends=None, as_child=False, ok_joystick=None, *args, **kwargs):
         _Widget.__pre_init__(self, font, text)
         self.text_width = self.font.size(self.text)[0] + 10
         self.image = pygame.Surface((self.text_width, 60))
@@ -475,13 +567,14 @@ class MessageboxError(_Widget):
         self.image.blit(under, (0, 30))
         self.rect = self.image.get_rect()
         self.rect.center = pos
+        self.ok_joystick = ok_joystick
         # title
         write(self.image, "center", self.text, self.font, BLACK, self.image.get_width() / 2, self.image.get_height() / 4)
         # ok
         write(self.image, "center", "OK", self.font, BLACK, self.image.get_width() / 4 * 3, self.image.get_height() / 4 * 3)
         self.rects = {}
         self.rects["ok"] = pygame.Rect(self.rect.left + self.text_width // 2, self.rect.top + 30, self.text_width, 60)
-        _Widget.__init__(self, self.image, surf, visible_when, friends, pos, anchor, width, height, exit_command, disabled, disable_type, template, type(self), add, special_flags, tooltip, appends)
+        _Widget.__init__(self, self.image, surf, visible_when, friends, pos, anchor, width, height, exit_command, disabled, disable_type, template, type(self), add, special_flags, tooltip, appends, as_child)
 
     def process_event(self, event):
         if event.type == pygame.KEYDOWN:
@@ -494,9 +587,13 @@ class MessageboxError(_Widget):
                 if self.rects["ok"].collidepoint(mouse):
                     self._exec_command(self.exit_command, "out destroy")
 
+        elif event.type == pygame.JOYBUTTONDOWN:
+            if event.button == self.ok_joystick:
+                self._exec_command(self.commands["ok"], "out destroy")
+
 
 class Checkbox(_Widget, _Overwriteable):
-    def __init__(self, surf, text, while_checked_command=None, check_command=None, uncheck_command=None, while_not_checked_command=None, width=None, height=None, checked=False, pos=_DEF_WIDGET_POS, anchor="center", exit_command=None, visible_when=None, font=None, tooltip_font=None, friends=None, disabled=False, disable_type=False, template=None, add=True, special_flags=None, tooltip=None, appends=None, *args, **kwargs):
+    def __init__(self, surf, text, while_checked_command=None, check_command=None, uncheck_command=None, while_not_checked_command=None, width=None, height=None, checked=False, pos=_DEF_WIDGET_POS, anchor="center", exit_command=None, visible_when=None, font=None, tooltip_font=None, friends=None, disabled=False, disable_type=False, template=None, add=True, special_flags=None, tooltip=None, appends=None, as_child=False, *args, **kwargs):
         _Widget.__pre_init__(self, font)
         self.text = text
         self.bg_color = WIDGET_GRAY
@@ -519,7 +616,7 @@ class Checkbox(_Widget, _Overwriteable):
         self.checked = False
         if checked:
             self.check_event()
-        _Widget.__init__(self, self.image, surf, visible_when, friends, pos, anchor, width, height, exit_command, disabled, disable_type, template, type(self), add, special_flags, tooltip, appends)
+        _Widget.__init__(self, self.image, surf, visible_when, friends, pos, anchor, width, height, exit_command, disabled, disable_type, template, type(self), add, special_flags, tooltip, appends, as_child)
 
     def __bool__(self):
         return self.checked
@@ -551,7 +648,7 @@ class Checkbox(_Widget, _Overwriteable):
 
 
 class Slider(_Widget):
-    def __init__(self, surf, text, values, start=None, on_move_command=None, decimals=0, pos=_DEF_WIDGET_POS, anchor="center", color=WIDGET_GRAY, width=None, height=None, exit_command=None, visible_when=None, font=None, tooltip_font=None, friends=None, disabled=False, disable_type=False, template=None, add=True, special_flags=None, tooltip=None, appends=None, *args, **kwargs):
+    def __init__(self, surf, text, values, start=None, on_move_command=None, decimals=0, pos=_DEF_WIDGET_POS, anchor="center", color=WIDGET_GRAY, width=None, height=None, exit_command=None, visible_when=None, font=None, tooltip_font=None, friends=None, disabled=False, disable_type=False, template=None, add=True, special_flags=None, tooltip=None, appends=None, as_child=False, *args, **kwargs):
         _Widget.__pre_init__(self, font, text)
         self.on_move_command = on_move_command
         fs = self.font.size(text)
@@ -562,12 +659,15 @@ class Slider(_Widget):
         self.image.fill(color)
         self.rect = self.image.get_rect()
         self.values = values
-        self.value = start if start is not None else values[0]
+        try:
+            self.value = values[start] if start is not None else values[0]
+        except IndexError:
+            self.value = start if start is not None else values[0]
         self.range = self.image.get_width() - 17
         self.ratio = (len(self.values) - 1) / self.range
         self.mult = self.range / (len(self.values) - 1)
         self.pressed = False
-        _Widget.__init__(self, self.image, surf, visible_when, friends, pos, anchor, width, height, exit_command, disabled, disable_type, template, type(self), add, special_flags, tooltip, appends)
+        _Widget.__init__(self, self.image, surf, visible_when, friends, pos, anchor, width, height, exit_command, disabled, disable_type, template, type(self), add, special_flags, tooltip, appends, as_child)
 
     @property
     def tooltip_rect(self):
@@ -719,14 +819,11 @@ def destroy_widgets():
 def draw_and_update_widgets():
     tooltip_data = []
     for widget in iter_widgets():
-        if widget.visible_when is None:
+        if widget.visible_when() if widget.visible_when is not None else True:
             if hasattr(widget, "draw") and not widget.disabled:
                 widget.draw()
             if hasattr(widget, "update") and not widget.disabled:
                 widget.update()
-        else:
-            if widget.visible_when():
-                widget.draw()
         if widget.tooltip is not None:
             if not widget.disabled:
                 if not hasattr(widget, "last_hover"):
