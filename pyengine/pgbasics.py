@@ -1053,7 +1053,7 @@ class _Command(_Key):
 
 class _OsC(_Key):
     def __init__(self):
-        if Platform.os == "windows":
+        if Platform.os in ("windows", "linux"):
             self.codes = K_CONTROL.codes
         elif Platform.os == "darwin":
             self.codes = K_COMMAND.codes
