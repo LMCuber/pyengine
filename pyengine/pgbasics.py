@@ -4,6 +4,7 @@ from .pilbasics import pil_to_pg
 import pygame
 from pygame.locals import *
 from pygame._sdl2.video import Window, Renderer, Texture, Image
+from pygame.math import Vector2
 import pygame.gfxdraw
 import pygame.midi
 import pymunk
@@ -57,6 +58,7 @@ YELLOW =        (255, 255,   0, 255)
 YELLOW_ORANGE = (255, 174,  66, 255)
 SKIN_COLOR =    (255, 219, 172, 255)
 GOLD =          (255, 214,   0, 255)
+CYAN =          (  0, 255, 255, 255)
 BLUE =          (  0,  0,  255, 255)
 POWDER_BLUE =   (176, 224, 230, 255)
 WATER_BLUE =    ( 17, 130, 177, 255)
@@ -195,6 +197,26 @@ def rot_pivot(image, pos, originPos, angle):
     return rotated_image, rotated_image_rect
 
 
+def rot_pivot(surface, angle, pivot, offset, rotate=False):
+    """Rotate the surface around the pivot point.
+
+    Args:
+        surface (pygame.Surface): The surface that is to be rotated.
+        angle (float): Rotate by this angle.
+        pivot (tuple, list, pygame.math.Vector2): The pivot point.
+        offset (pygame.math.Vector2): This vector is added to the pivot.
+    """
+    # Rotate the image.
+    if rotate:
+        rotated_image = pygame.transform.rotate(surface, -angle)
+    else:
+        rotated_image = pygame.transform.rotozoom(surface, -angle, 1)
+    rotated_offset = offset.rotate(angle)  # Rotate the offset vector.
+    # Add the offset vector to the center/pivot point to shift the rect.
+    rect = rotated_image.get_rect(center=pivot+rotated_offset)
+    return rotated_image, rect  # Return the rotated image and shifted rect.
+
+
 def color_diff_euclid(c1, c2):
     dx = c2[0] - c1[0]
     dy = c2[1] - c1[1]
@@ -204,16 +226,15 @@ def color_diff_euclid(c1, c2):
 
 
 def palettize_image(image, palette):
-    img = pygame.Surface(image.get_size(), pygame.SRCALPHA)
-    palette = imgload("assets", "Images", "Palettes", "sunset.png")
+    ret = pygame.Surface(image.get_size(), pygame.SRCALPHA)
     colors = [palette.get_at((x, 0)) for x in range(palette.get_width())]
     # colors = [(0, 0, 128, 255), (194, 178, 128, 255), (0, 0, 0, 255), (137, 207, 240, 255)]
-    for y in range(img.get_height()):
-        for x in range(img.get_width()):
-            rgba = tuple(img.get_at((x, y)))
+    for y in range(image.get_height()):
+        for x in range(image.get_width()):
+            rgba = tuple(image.get_at((x, y)))
             rgb = rgba[:3]
             if rgb in [(1, 0, 0), (0, 1, 0), (0, 0, 1)] and rgba[-1] == 0:
-                img.set_at((x, y), (0, 0, 0, 0))
+                ret.set_at((x, y), (0, 0, 0, 0))
                 continue
             if rgba == (0, 0, 0, 0):
                 continue
@@ -223,8 +244,8 @@ def palettize_image(image, palette):
                 diff = color_diff_euclid(rgb, color)
                 if diff < min_[0]:
                     min_ = (diff, color)
-            img.set_at((x, y), min_[1])
-    return img
+            ret.set_at((x, y), min_[1])
+    return ret
 
 
 def get_rect_anim(size, border_radius=10, border_width=2, color=BLACK, colorkey_color=RED):
@@ -299,7 +320,7 @@ def diamond_square(power, mult=1):
     return surf
 
 
-def pmotion(og_img, sxvel, syvel, dx, sx, sy, gravity):
+def pmotion(sxvel, syvel, dx, sx, sy, gravity):
     # calculating the quadratic function
     ytop = -((syvel ** 2) / (2 * -gravity))
     tair = (syvel / (-gravity)) * 2
@@ -309,7 +330,7 @@ def pmotion(og_img, sxvel, syvel, dx, sx, sy, gravity):
     try:
         a = -(ytop / xtop ** 2)
     except ZeroDivisionError:
-        return [], [], og_img
+        return [], []
     equ = f"f(x) = {a}(x - {xtop})^2 + {ytop}"
     f = lambda x: a * (x - xtop) ** 2 + ytop
     # calculating the derivative of f
@@ -327,9 +348,9 @@ def pmotion(og_img, sxvel, syvel, dx, sx, sy, gravity):
     # changing the angle accordingly
     rc = m
     ang = degrees(atan2(m, 1))
-    img = pygame.transform.rotozoom(og_img, ang, 1)
-    img.set_colorkey(BLACK)
-    return parab, tangent, img
+    # img = pygame.transform.rotozoom(og_img, ang, 1)
+    # img.set_colorkey(BLACK)
+    return parab, tangent
 
 
 def borderize(img, color, thickness=1):
@@ -807,13 +828,12 @@ class Crystal:
         self.renderer.blit(self.circle_textures[i], rect)
 
     def connect_points(self, line_color, *points, index=True):
-        self.renderer.draw_color = line_color
         for i in range(len(points)):
             j = points[(i + 1) if i < len(points) - 1 else 0]
             i = points[i]
             if index:
                 i, j = self.points[i], self.points[j]
-            self.renderer.draw_line(i, j)
+            draw_line(self.renderer, line_color, i, j)
 
     def fill_points(self, data, *points):
         # setup
@@ -838,6 +858,8 @@ class Crystal:
                 fill_quad(self.renderer, fill_color, *points)
             if outline_color:
                 draw_quad(self.renderer, outline_color, *points)
+        else:
+            raise ValueError(f"Invalid number of vertices: {len(points)}")
 
         # draw the normals (debug)
         if self.normals:
@@ -848,8 +870,7 @@ class Crystal:
             pos = farther.dot(orthogonal_projection_matrix)
             x, y = 200 * pos[0] + self.ox, 200 * pos[1] + self.oy
             rect = pygame.Rect(x - self.r, y - self.r, self.r * 3, self.r * 3)
-            self.renderer.draw_color = fill_color
-            self.renderer.draw_line(orect.topleft, rect.topleft)
+            draw_line(self.renderer, fill_color, orect.topleft, rect.topleft)
 
     def get_vertices_from_obj(self, p):
         self.vertices = []
@@ -973,12 +994,12 @@ class SmartVector:
 
 
 class PhysicsEntity:
-    def __init__(self, win, size, space, x, y, r=5, d=1, e=1, body_type=pymunk.Body.DYNAMIC):
+    def __init__(self, win, size, space, x, y, m=5, r=5, d=1, e=1, body_type=pymunk.Body.DYNAMIC):
         self.win = win
         self.width, self.height = size
         self.space = space
         self.x, self.y = x, y
-        self.body = pymunk.Body(body_type=body_type)
+        self.body = pymunk.Body(body_type=body_type, mass=m)
         self.body.position = (x, self.height - y)
         self.r = r
         self.shape = pymunk.Circle(self.body, r)
@@ -1004,10 +1025,13 @@ class PhysicsEntityConnector:
         self.win = win
         self.width, self.height = size
         self.space = space
+        if src.body.body_type == STATIC and dest.body.body_type == STATIC:
+            raise ValueError(f"One of the two physics entities must be a dynamic body instead of static ({src.body.body_type}, {dest.body.body_type})")
         self.src = src
         self.dest = dest
         self.joint = pymunk.PinJoint(self.src.body, self.dest.body)
         # self.limit_joint = pymunk.SlideJoint()
+        self.joint.collide_bodies = False
         self.space.add(self.joint)
 
     def draw(self):

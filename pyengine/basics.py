@@ -32,11 +32,18 @@ INF = "\u221e"  # infinity
 DEG = "\u00B0"  # celcius
 BULLET = "⁍"
 int_to_word = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"]
+
+# take a moment to appeciate this beuaty
 pritn = print   # be cau sè
 prrint = print  # be cau sè
 pirnt = print   # be cau sè
 PRINT = print   # be cau sè
 pint = print    # be cau sè
+ptrint = print  # be cau sè
+priint = print  # be cau sè
+prinit = print # be cau sè
+print = print
+
 epoch = time.time
 lambda_none = lambda *a, **kwa: None
 lambda_ret = lambda x: x
@@ -441,6 +448,14 @@ def safe_file_name(name, os_=None):
 
 def nordis(mu, sigma, r=None, int_=True, ):
     return (int if int_ else lambda_ret)(getattr(r if r is not None else random, "gauss")(mu, sigma))
+
+
+def nordis(mu, sigma, int_=True):
+    f = (int if int_ else lambda_ret)
+    ret = f(random.gauss(mu, sigma))
+    ret = min(ret, mu + sigma)
+    ret = max(ret, mu - sigma)
+    return ret
 
 
 def txt2list(path_):
