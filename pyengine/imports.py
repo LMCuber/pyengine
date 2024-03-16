@@ -12,7 +12,7 @@ from multiprocessing import Process
 from difflib import SequenceMatcher
 from importlib import import_module
 from copy import copy, deepcopy
-from psutil import cpu_percent
+# from psutil import cpu_percent
 from functools import partial
 from threading import Thread
 from threading import Timer

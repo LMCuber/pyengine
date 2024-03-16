@@ -1,7 +1,4 @@
 from .imports import *
-import translatepy
-from translatepy.translators.google import GoogleTranslate as _TpyGoogleTranslate
-from googletrans import Translator as _GoogleGoogleTranslate
 from pandas.io.clipboard import clipboard_get as pd_clipboard_get
 import operator as op
 import numpy as np
