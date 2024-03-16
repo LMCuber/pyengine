@@ -4,11 +4,14 @@ from .pilbasics import pil_to_pg
 import pygame
 from pygame.locals import *
 from pygame._sdl2.video import Window, Renderer, Texture, Image
+from pygame.math import Vector2
 import pygame.gfxdraw
 import pygame.midi
 import pymunk
+import typing
 from colorsys import rgb_to_hsv, hsv_to_rgb, rgb_to_hls, hls_to_rgb
 from numpy import array
+import cv2
 
 
 pygame.init()
@@ -57,6 +60,7 @@ YELLOW =        (255, 255,   0, 255)
 YELLOW_ORANGE = (255, 174,  66, 255)
 SKIN_COLOR =    (255, 219, 172, 255)
 GOLD =          (255, 214,   0, 255)
+CYAN =          (  0, 255, 255, 255)
 BLUE =          (  0,  0,  255, 255)
 POWDER_BLUE =   (176, 224, 230, 255)
 WATER_BLUE =    ( 17, 130, 177, 255)
@@ -86,6 +90,76 @@ orthogonal_projection_matrix = array([
     [0, 0, 0]
 ])
 resolutions = [(640 * m, 360 * m) for m in range(1, 6)]
+
+
+def warp(surf: pygame.Surface,
+         warp_pts,
+         smooth=True,
+         out: pygame.Surface = None) -> typing.Tuple[pygame.Surface, pygame.Rect]:
+    """Stretches a pygame surface to fill a quad using cv2's perspective warp.
+
+        Args:
+            surf: The surface to transform.
+            warp_pts: A list of four xy coordinates representing the polygon to fill.
+                Points should be specified in clockwise order starting from the top left.
+            smooth: Whether to use linear interpolation for the image transformation.
+                If false, nearest neighbor will be used.
+            out: An optional surface to use for the final output. If None or not
+                the correct size, a new surface will be made instead.
+
+        Returns:
+            [0]: A Surface containing the warped image.
+            [1]: A Rect describing where to blit the output surface to make its coordinates
+                match the input coordinates.
+    """
+    if len(warp_pts) != 4:
+        raise ValueError("warp_pts must contain four points")
+
+    w, h = surf.get_size()
+    is_alpha = surf.get_flags() & pygame.SRCALPHA
+
+    # XXX throughout this method we need to swap x and y coordinates
+    # when we pass stuff between pygame and cv2. I'm not sure why .-.
+    src_corners = numpy.float32([(0, 0), (0, w), (h, w), (h, 0)])
+    quad = [tuple(reversed(p)) for p in warp_pts]
+
+    # find the bounding box of warp points
+    # (this gives the size and position of the final output surface).
+    min_x, max_x = float('inf'), -float('inf')
+    min_y, max_y = float('inf'), -float('inf')
+    for p in quad:
+        min_x, max_x = min(min_x, p[0]), max(max_x, p[0])
+        min_y, max_y = min(min_y, p[1]), max(max_y, p[1])
+    warp_bounding_box = pygame.Rect(int(min_x), int(min_y),
+                                    int(max_x - min_x),
+                                    int(max_y - min_y))
+
+    shifted_quad = [(p[0] - min_x, p[1] - min_y) for p in quad]
+    dst_corners = numpy.float32(shifted_quad)
+
+    mat = cv2.getPerspectiveTransform(src_corners, dst_corners)
+
+    orig_rgb = pygame.surfarray.pixels3d(surf)
+
+    flags = cv2.INTER_LINEAR if smooth else cv2.INTER_NEAREST
+    out_rgb = cv2.warpPerspective(orig_rgb, mat, warp_bounding_box.size, flags=flags)
+
+    if out is None or out.get_size() != out_rgb.shape[0:2]:
+        out = pygame.Surface(out_rgb.shape[0:2], pygame.SRCALPHA if is_alpha else 0)
+
+    pygame.surfarray.blit_array(out, out_rgb)
+
+    if is_alpha:
+        orig_alpha = pygame.surfarray.pixels_alpha(surf)
+        out_alpha = cv2.warpPerspective(orig_alpha, mat, warp_bounding_box.size, flags=flags)
+        alpha_px = pygame.surfarray.pixels_alpha(out)
+        alpha_px[:] = out_alpha
+    else:
+        out.set_colorkey(surf.get_colorkey())
+
+    # XXX swap x and y once again...
+    return out, pygame.Rect(warp_bounding_box.y, warp_bounding_box.x,
+                            warp_bounding_box.h, warp_bounding_box.w)
 
 
 def get_rotation_matrix_x(angle_x):
@@ -195,6 +269,26 @@ def rot_pivot(image, pos, originPos, angle):
     return rotated_image, rotated_image_rect
 
 
+def rot_pivot(surface, angle, pivot, offset, rotate=False):
+    """Rotate the surface around the pivot point.
+
+    Args:
+        surface (pygame.Surface): The surface that is to be rotated.
+        angle (float): Rotate by this angle.
+        pivot (tuple, list, pygame.math.Vector2): The pivot point.
+        offset (pygame.math.Vector2): This vector is added to the pivot.
+    """
+    # Rotate the image.
+    if rotate:
+        rotated_image = pygame.transform.rotate(surface, -angle)
+    else:
+        rotated_image = pygame.transform.rotozoom(surface, -angle, 1)
+    rotated_offset = offset.rotate(angle)  # Rotate the offset vector.
+    # Add the offset vector to the center/pivot point to shift the rect.
+    rect = rotated_image.get_rect(center=pivot + rotated_offset)
+    return rotated_image, rect  # Return the rotated image and shifted rect.
+
+
 def color_diff_euclid(c1, c2):
     dx = c2[0] - c1[0]
     dy = c2[1] - c1[1]
@@ -204,16 +298,15 @@ def color_diff_euclid(c1, c2):
 
 
 def palettize_image(image, palette):
-    img = pygame.Surface(image.get_size(), pygame.SRCALPHA)
-    palette = imgload("assets", "Images", "Palettes", "sunset.png")
+    ret = pygame.Surface(image.get_size(), pygame.SRCALPHA)
     colors = [palette.get_at((x, 0)) for x in range(palette.get_width())]
     # colors = [(0, 0, 128, 255), (194, 178, 128, 255), (0, 0, 0, 255), (137, 207, 240, 255)]
-    for y in range(img.get_height()):
-        for x in range(img.get_width()):
-            rgba = tuple(img.get_at((x, y)))
+    for y in range(image.get_height()):
+        for x in range(image.get_width()):
+            rgba = tuple(image.get_at((x, y)))
             rgb = rgba[:3]
             if rgb in [(1, 0, 0), (0, 1, 0), (0, 0, 1)] and rgba[-1] == 0:
-                img.set_at((x, y), (0, 0, 0, 0))
+                ret.set_at((x, y), (0, 0, 0, 0))
                 continue
             if rgba == (0, 0, 0, 0):
                 continue
@@ -223,8 +316,8 @@ def palettize_image(image, palette):
                 diff = color_diff_euclid(rgb, color)
                 if diff < min_[0]:
                     min_ = (diff, color)
-            img.set_at((x, y), min_[1])
-    return img
+            ret.set_at((x, y), min_[1])
+    return ret
 
 
 def get_rect_anim(size, border_radius=10, border_width=2, color=BLACK, colorkey_color=RED):
@@ -299,7 +392,7 @@ def diamond_square(power, mult=1):
     return surf
 
 
-def pmotion(og_img, sxvel, syvel, dx, sx, sy, gravity):
+def pmotion(sxvel, syvel, dx, sx, sy, gravity):
     # calculating the quadratic function
     ytop = -((syvel ** 2) / (2 * -gravity))
     tair = (syvel / (-gravity)) * 2
@@ -309,7 +402,7 @@ def pmotion(og_img, sxvel, syvel, dx, sx, sy, gravity):
     try:
         a = -(ytop / xtop ** 2)
     except ZeroDivisionError:
-        return [], [], og_img
+        return [], []
     equ = f"f(x) = {a}(x - {xtop})^2 + {ytop}"
     f = lambda x: a * (x - xtop) ** 2 + ytop
     # calculating the derivative of f
@@ -327,9 +420,9 @@ def pmotion(og_img, sxvel, syvel, dx, sx, sy, gravity):
     # changing the angle accordingly
     rc = m
     ang = degrees(atan2(m, 1))
-    img = pygame.transform.rotozoom(og_img, ang, 1)
-    img.set_colorkey(BLACK)
-    return parab, tangent, img
+    # img = pygame.transform.rotozoom(og_img, ang, 1)
+    # img.set_colorkey(BLACK)
+    return parab, tangent
 
 
 def borderize(img, color, thickness=1):
@@ -593,7 +686,7 @@ def pg_rect_to_pil(pg_rect):
 
 
 def rgb_mult(color, factor):
-    ret_list = [int(c * factor) for c in color]
+    ret_list = [int(c * factor) for c in color[:3]] + ([color[3]] if len(color) == 4 else [])
     for index, ret in enumerate(ret_list):
         if ret > 255:
             ret_list[index] = 255
@@ -715,7 +808,7 @@ class CursorTrail:
 
 
 class Crystal:
-    def __init__(self, renderer, vertices, point_colors, connections, fills, origin, mult, radius, xa=0, ya=0, za=0, xav=0, yav=0, zav=0, rotate=True, fill_as_connections=False, normals=False, normalize=False, **kwargs):
+    def __init__(self, renderer, vertices, point_colors, connections, fills, origin, mult, radius, xa=0, ya=0, za=0, xav=0, yav=0, zav=0, rotate=True, fill_as_connections=False, normals=False, normalize=False, textures=None, **kwargs):
         self.__dict__.update(kwargs)
         self.renderer = renderer
         self.normalize = normalize
@@ -739,6 +832,7 @@ class Crystal:
         self.xav, self.yav, self.zav = xav, yav, zav
         self.rotate = rotate
         self.fill_as_connections = fill_as_connections
+        self.textures = textures if textures is not None else []
         # self.width = max([x[0] for x in self.vertices]) - min([x[0] for x in self.vertices]) * self.m
         # self.height = max([x[1] for x in self.vertices]) - min([x[1] for x in self.vertices]) * self.m
         # self.depth = max([x[2] for x in self.vertices]) - min([x[2] for x in self.vertices]) * self.m
@@ -776,11 +870,27 @@ class Crystal:
                 vector_normal = vector.dot(get_rotation_matrix_z(self.za))
                 self.updated_normals.append(vector_normal)
 
+        # fills
         self.fill_vertices = [[self.updated_vertices[x] if isinstance(x, int) else x for x in data] for data in self.fills]
         self.fill_vertices = sorted(self.fill_vertices, key=lambda x: average_z(x[1:]))
         self.fill_data = []
-        for index, data in enumerate(self.fill_vertices):
+        for index, capsule in enumerate(self.fill_vertices):
             # init lel
+            data = capsule[0]
+            d = [data]
+            for vertex in capsule[1:]:
+                # project the matrices
+                pos = vertex.dot(orthogonal_projection_matrix)
+                x, y = self.m * pos[0] + self.ox, self.m * pos[1] + self.oy
+                rect = pygame.Rect(x - self.r, y - self.r, self.r * 2, self.r * 2)
+                # self.renderer.blit(self.default_circle, rect)
+                d.append([x, y])
+            self.fill_data.append(d)
+
+        # textures
+        self.texture_vertices = [[self.updated_vertices[x] if isinstance(x, int) else x for x in data] for data in self.textures]
+        self.texture_data = []
+        for index, data in enumerate(self.texture_vertices):
             color = data[0]
             d = [color]
             for vertex in data[1:]:
@@ -790,13 +900,16 @@ class Crystal:
                 rect = pygame.Rect(x - self.r, y - self.r, self.r * 2, self.r * 2)
                 # self.renderer.blit(self.default_circle, rect)
                 d.append([x, y])
-            self.fill_data.append(d)
+            self.texture_data.append(d)
 
         for data in self.fill_data:
             if self.fill_as_connections and False:
                 self.connect_points(*data, index=False)
             else:
                 self.fill_points(*data)
+        for data in self.texture_data:
+            # self.map_texture(*data)
+            pass
         for connection in self.connections:
             self.connect_points(*connection)
         for circle in self.circles:
@@ -807,18 +920,22 @@ class Crystal:
         self.renderer.blit(self.circle_textures[i], rect)
 
     def connect_points(self, line_color, *points, index=True):
-        self.renderer.draw_color = line_color
         for i in range(len(points)):
             j = points[(i + 1) if i < len(points) - 1 else 0]
             i = points[i]
             if index:
                 i, j = self.points[i], self.points[j]
-            self.renderer.draw_line(i, j)
+            draw_line(self.renderer, line_color, i, j)
 
     def fill_points(self, data, *points):
         # setup
         fill_color = data[0] if 0 < len(data) else False
         outline_color = data[1] if 1 < len(data) else False
+        if isinstance(data[0], pygame.Surface):
+            surf = data[0]
+            fill_color = False
+        else:
+            surf = False
         # normals
         if self.normals:
             normal_index = data[2] if 2 < len(data) else False
@@ -828,6 +945,10 @@ class Crystal:
             dot = vec.dot(camera)
             fill_color = [0] + [int((dot + 1) / 2 * 255)] + [0, 255]
         # filling
+        if surf:
+            surf, rect = warp(surf, points)
+            tex = Texture.from_surface(self.renderer, surf)
+            self.renderer.blit(tex, rect)
         if len(points) == 3:
             if fill_color:
                 fill_triangle(self.renderer, fill_color, *points)
@@ -838,6 +959,8 @@ class Crystal:
                 fill_quad(self.renderer, fill_color, *points)
             if outline_color:
                 draw_quad(self.renderer, outline_color, *points)
+        else:
+            raise ValueError(f"Invalid number of vertices: {len(points)}")
 
         # draw the normals (debug)
         if self.normals:
@@ -848,8 +971,13 @@ class Crystal:
             pos = farther.dot(orthogonal_projection_matrix)
             x, y = 200 * pos[0] + self.ox, 200 * pos[1] + self.oy
             rect = pygame.Rect(x - self.r, y - self.r, self.r * 3, self.r * 3)
-            self.renderer.draw_color = fill_color
-            self.renderer.draw_line(orect.topleft, rect.topleft)
+            draw_line(self.renderer, fill_color, orect.topleft, rect.topleft)
+
+    def map_texture(self, data, *points):
+        surf = data[0]
+        surf, rect = warp(surf, points)
+        tex = Texture.from_surface(self.renderer, surf)
+        self.renderer.blit(tex, rect)
 
     def get_vertices_from_obj(self, p):
         self.vertices = []
@@ -973,12 +1101,12 @@ class SmartVector:
 
 
 class PhysicsEntity:
-    def __init__(self, win, size, space, x, y, r=5, d=1, e=1, body_type=pymunk.Body.DYNAMIC):
+    def __init__(self, win, size, space, x, y, m=5, r=5, d=1, e=1, body_type=pymunk.Body.DYNAMIC):
         self.win = win
         self.width, self.height = size
         self.space = space
         self.x, self.y = x, y
-        self.body = pymunk.Body(body_type=body_type)
+        self.body = pymunk.Body(body_type=body_type, mass=m)
         self.body.position = (x, self.height - y)
         self.r = r
         self.shape = pymunk.Circle(self.body, r)
@@ -1004,10 +1132,13 @@ class PhysicsEntityConnector:
         self.win = win
         self.width, self.height = size
         self.space = space
+        if src.body.body_type == STATIC and dest.body.body_type == STATIC:
+            raise ValueError(f"One of the two physics entities must be a dynamic body instead of static ({src.body.body_type}, {dest.body.body_type})")
         self.src = src
         self.dest = dest
         self.joint = pymunk.PinJoint(self.src.body, self.dest.body)
         # self.limit_joint = pymunk.SlideJoint()
+        self.joint.collide_bodies = False
         self.space.add(self.joint)
 
     def draw(self):

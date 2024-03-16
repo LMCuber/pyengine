@@ -2,7 +2,6 @@ setup.py
 pyengine/__init__.py
 pyengine/basics.py
 pyengine/imports.py
-pyengine/pgaudio.py
 pyengine/pgbasics.py
 pyengine/pgwidgets.py
 pyengine/pilbasics.py

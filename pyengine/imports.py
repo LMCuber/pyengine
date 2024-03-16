@@ -5,6 +5,7 @@ from types import SimpleNamespace as EmptyObject, FunctionType
 from collections import OrderedDict as OD, defaultdict as dd
 from tempfile import TemporaryFile, NamedTemporaryFile
 from os.path import join as path, isfile, splitext
+from inspect import getsource, getsourcefile
 from time import sleep, perf_counter
 from itertools import chain, product
 from multiprocessing import Process
@@ -12,7 +13,6 @@ from difflib import SequenceMatcher
 from importlib import import_module
 from copy import copy, deepcopy
 from psutil import cpu_percent
-from inspect import getsource
 from functools import partial
 from threading import Thread
 from threading import Timer

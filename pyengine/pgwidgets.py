@@ -56,6 +56,7 @@ class _Widget:
             for append in appends:
                 append.append(self)
         setattr(self.rect, anchor, pos)
+        self.og_rect = self.rect.copy()
         self.image = Texture.from_surface(self.surf, self.image)
         Thread(target=self.zoom, args=["in"]).start()
         self.startup_command()
@@ -100,25 +101,11 @@ class _Widget:
         Thread(target=self.zoom, args=["out"]).start()
 
     def zoom(self, type_):
+        n = 20
         if type_ == "in":
-            self.zooming = True
-            for i in range(20):
-                if False:
-                    size = [round(fromperc((i + 1) * 5, s)) for s in self.og_size]
-                    self.image = pygame.transform.scale(self.og_img, size)
-                    self.rect = self.image.get_rect()
-                setattr(self.rect, self.og_anchor, self.og_pos)
-                time.sleep(WOOSH_TIME)
             self.zooming = False
         elif "out" in type_:
             self.zooming = True
-            for i in reversed(range(20)):
-                if False:
-                    size = [round(fromperc((i + 1) * 5, s)) for s in self.og_size]
-                    self.image = pygame.transform.scale(self.og_img, size)
-                    self.rect = self.image.get_rect()
-                setattr(self.rect, self.og_anchor, self.og_pos)
-                time.sleep(WOOSH_TIME)
             if type_ == "out":
                 self._exec_command(self.exit_command)
                 self.disabled = True
@@ -213,7 +200,7 @@ class Button(_Widget, _Overwriteable, ButtonBehavior):
 
 
 class ComboBox(_Widget, _Overwriteable, ButtonBehavior):
-    def __init__(self, surf, text, combos, command=lambda_none, width=None, height=None, pos=_DEF_WIDGET_POS, text_color=BLACK, bg_color=WIDGET_GRAY, bg_colors=None, hover_color=YELLOW, extension_offset=(0, 0), anchor="center", exit_command=None, visible_when=None, font=None, tooltip_font=None, friends=None, click_effect=False, disabled=False, disable_type=False, template=None, add=True, special_flags=None, tooltip=None, appends=None, as_child=False, *args, **kwargs):
+    def __init__(self, surf, text, combos, unavailable=None, command=lambda_none, width=None, height=None, pos=_DEF_WIDGET_POS, text_color=BLACK, bg_color=WIDGET_GRAY, bg_colors=None, hover_color=YELLOW, extension_offset=(0, 0), anchor="center", exit_command=None, visible_when=None, font=None, tooltip_font=None, friends=None, click_effect=False, disabled=False, disable_type=False, template=None, add=True, special_flags=None, tooltip=None, appends=None, as_child=False, *args, **kwargs):
         _Widget.__pre_init__(self, font, text)
         self.text = text
         self.current = text
@@ -223,6 +210,7 @@ class ComboBox(_Widget, _Overwriteable, ButtonBehavior):
         self.bg_colors = bg_colors
         self.hover_color = hover_color
         self.click_effect = click_effect
+        self.unavailable = unavailable or []
         self.init_size(width, height, text)
         self.image.fill(bg_color)
         write(self.image, "center", self.text, self.font, text_color, *[s / 2 for s in self.image.get_size()])
@@ -240,8 +228,13 @@ class ComboBox(_Widget, _Overwriteable, ButtonBehavior):
             w = self.combo_width
             h = font.size(combo)[1]
             combo_rect = pygame.Rect(self.rect.x + x, self.rect.y + y, w, h + 6)
-            self.combo_image.fill(bg_color if bg_colors is None else bg_colors[i], combo_rect)
-            write(self.combo_image, "topleft", combo, font, text_color, x + 3, y + 3)
+            bg_c = bg_color if bg_colors is None else bg_colors[i]
+            text_c = text_color
+            if combo in self.unavailable:
+                bg_c = rgb_mult(bg_c, 0.7)
+                text_c = rgb_mult(text_c, 0.7)
+            self.combo_image.fill(bg_c, combo_rect)
+            write(self.combo_image, "topleft", combo, font, text_c, x + 3, y + 3)
             self.combo_rects[combo] = combo_rect
             y += combo_rect.height
         self.combo_image = Texture.from_surface(surf, self.combo_image)
@@ -257,19 +250,21 @@ class ComboBox(_Widget, _Overwriteable, ButtonBehavior):
                 self.extended = not self.extended
             if self.extended and self.real_combo_rects is not None:
                 for name, rect in self.real_combo_rects.items():
-                    if rect.collidepoint(pygame.mouse.get_pos()):
-                        self.overwrite(name)
-                        self.extended = False
-                        self.current = name
-                        self.command(name)
+                    if name not in self.unavailable:
+                        if rect.collidepoint(pygame.mouse.get_pos()):
+                            self.overwrite(name)
+                            self.extended = False
+                            self.current = name
+                            self.command(name)
 
     def update(self):
         if self.extended:
             self.reload_combo_rects()
             self.surf.blit(self.combo_image, self.real_combo_rect)
             for name, rect in self.real_combo_rects.items():
-                if rect.collidepoint(pygame.mouse.get_pos()):
-                    draw_rect(self.surf, self.hover_color, rect)
+                if name not in self.unavailable:
+                    if rect.collidepoint(pygame.mouse.get_pos()):
+                        draw_rect(self.surf, self.hover_color, rect)
 
     def reload_combo_rects(self):
         xo, yo = self.extension_offset[0] * self.combo_width, self.extension_offset[1] * self.combo_height
@@ -593,15 +588,16 @@ class MessageboxError(_Widget):
 
 
 class Checkbox(_Widget, _Overwriteable):
-    def __init__(self, surf, text, while_checked_command=None, check_command=None, uncheck_command=None, while_not_checked_command=None, width=None, height=None, checked=False, pos=_DEF_WIDGET_POS, anchor="center", exit_command=None, visible_when=None, font=None, tooltip_font=None, friends=None, disabled=False, disable_type=False, template=None, add=True, special_flags=None, tooltip=None, appends=None, as_child=False, *args, **kwargs):
+    def __init__(self, surf, text, while_checked_command=None, check_command=None, uncheck_command=None, while_not_checked_command=None, width=None, height=None, checked=False, pos=_DEF_WIDGET_POS, anchor="center", bg_color=WIDGET_GRAY, text_color=BLACK, exit_command=None, visible_when=None, font=None, tooltip_font=None, friends=None, disabled=False, disable_type=False, template=None, add=True, special_flags=None, tooltip=None, appends=None, as_child=False, *args, **kwargs):
         _Widget.__pre_init__(self, font)
         self.text = text
-        self.bg_color = WIDGET_GRAY
+        self.bg_color = bg_color
+        self.text_color = text_color
         w = width - 30 if width is not None else self.font.size(text)[0]
         h = height - 10 if height is not None else self.font.size(text)[1]
-        self.image = pygame.Surface((30 + 5 + w + 5, 5 + h + 5))
+        self.image = pygame.Surface((30 + 5 + w + 5, 5 + h + 5), pygame.SRCALPHA)
         self.image.fill(self.bg_color)
-        write(self.image, "topleft", text, self.font, BLACK, 30, 5)
+        write(self.image, "topleft", text, self.font, self.text_color, 30, 5)
         self.box = pygame.Surface((h - 5, h - 5))
         self.box.fill(WHITE)
         self.box = Texture.from_surface(surf, self.box)
@@ -648,15 +644,19 @@ class Checkbox(_Widget, _Overwriteable):
 
 
 class Slider(_Widget):
-    def __init__(self, surf, text, values, start=None, on_move_command=None, decimals=0, pos=_DEF_WIDGET_POS, anchor="center", color=WIDGET_GRAY, width=None, height=None, exit_command=None, visible_when=None, font=None, tooltip_font=None, friends=None, disabled=False, disable_type=False, template=None, add=True, special_flags=None, tooltip=None, appends=None, as_child=False, *args, **kwargs):
+    def __init__(self, surf, text, values, start=None, on_move_command=None, decimals=0, pos=_DEF_WIDGET_POS, anchor="center", bg_color=WIDGET_GRAY, text_color=BLACK, slider_color=GRAY, width=None, height=None, exit_command=None, visible_when=None, font=None, tooltip_font=None, friends=None, disabled=False, disable_type=False, template=None, add=True, special_flags=None, tooltip=None, appends=None, as_child=False, *args, **kwargs):
         _Widget.__pre_init__(self, font, text)
         self.on_move_command = on_move_command
         fs = self.font.size(text)
         daw_ = 40
         self.text = text
         self.init_size(width, height, text)
-        self.color = color
-        self.image.fill(color)
+        self.bg_color = bg_color
+        self.text_color = text_color
+        self.slider_color = slider_color
+        self.start = start
+        self.image.fill(self.bg_color)
+        write(self.image, "topleft", self.text, self.font, self.text_color, 5, 5)
         self.rect = self.image.get_rect()
         self.values = values
         try:
@@ -667,6 +667,13 @@ class Slider(_Widget):
         self.ratio = (len(self.values) - 1) / self.range
         self.mult = self.range / (len(self.values) - 1)
         self.pressed = False
+        # slider
+        self.slider_img = pygame.Surface((7, self.image.get_height() / 2 - 4))
+        self.slider_img.fill(self.slider_color)
+        self.slider_img = Texture.from_surface(surf, self.slider_img)
+        self.sliders_ready = False
+        self.sliding = False
+        # final
         _Widget.__init__(self, self.image, surf, visible_when, friends, pos, anchor, width, height, exit_command, disabled, disable_type, template, type(self), add, special_flags, tooltip, appends, as_child)
 
     @property
@@ -674,7 +681,7 @@ class Slider(_Widget):
         return pygame.Rect(*self.rect.topleft, self.rect.width, self.rect.height / 2)
 
     def in_area(self):
-        return pygame.mouse.get_pressed()[0] and 5 <= self.mouse[0] <= self.rect.width - 5 and 8 <= self.mouse[1] <= self.rect.height - 8
+        return self.rect.collidepoint(pygame.mouse.get_pos())
 
     def process_event(self, event):
         prev_value = self.value
@@ -682,37 +689,62 @@ class Slider(_Widget):
             self.pressed = self.in_area()
         elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
             self.pressed = False
-        if event.type == pygame.MOUSEMOTION:
-            if pygame.mouse.get_pressed()[0]:
-                self.update()
-                if prev_value != self.value:
-                    self._exec_command(self.on_move_command, None, self.value)
+
+    def init_slider_stuff(self):
+        self.slider_rect = self.slider_img.get_rect()
+        self.slider_rect.bottomleft = (self.rect.x + 5, self.rect.y + self.image.height - 8)
+        self.xo, self.yo = 10, 8
+        self.max_offset = self.image.width - self.xo
+        self.sliders_ready = True
+        self.interval = self.max_offset / len(self.values)
+        # start value
+        index = self.values.index(self.start) if self.start in self.values else self.start
+        dx = (index * (self.max_offset - self.xo)) / (len(self.values) - 1) + self.xo
+        self.value = self.values[index]
+        self.slider_rect.centerx = self.rect.x + dx
+        self.slider_rect.bottom = self.rect.y + self.image.height - self.yo
 
     def update(self):
+        prev_value = self.value
         self.mouse = pygame.mouse.get_pos()
-        self.mouse = (self.mouse[0] - self.rect.x, self.mouse[1] - self.rect.y)
         self.mouses = pygame.mouse.get_pressed()
+        if len(threading.enumerate()) == 1 and not self.sliders_ready:
+            self.init_slider_stuff()
+        if self.sliders_ready:
+            if self.pressed:
+                dx = self.mouse[0] - self.rect.x
+                dx = min(max(dx, self.xo), self.image.width - self.xo)
+                self.slider_rect.centerx = self.rect.x + dx
+                self.slider_rect.bottom = self.rect.y + self.image.height - self.yo
+                findex = (dx - self.xo) / (self.max_offset - self.xo) * (len(self.values) - 1)
+                self.value = self.values[round(findex)]
+            write(self.surf, "topright", self.value, self.font, self.text_color, self.rect.right - self.xo, self.rect.y + 5, tex=True)
+            self.surf.blit(self.slider_img, self.slider_rect)
+        if self.value != prev_value:
+            self._exec_command(self.on_move_command, None, self.value)
+
+
+
+        """
         if len(threading.enumerate()) == 1:
             if not hasattr(self, "slider_img"):
                 self.slider_img = pygame.Surface((7, self.image.height / 2 - 4))
-                self.slider_img.fill(GRAY)
+                self.slider_img.fill(self.slider_color)
                 self.slider_img = Texture.from_surface(self.surf, self.slider_img)
             if not hasattr(self, "slider_rect"):
-                self.slider_rect = self.slider_img.get_rect(bottomleft=(5, self.image.height - 8))
+                self.slider_rect = self.slider_img.get_rect(bottomleft=(self.rect.x + 5, self.rect.y + self.image.height - 8))
                 with suppress(ValueError):
                     self.slider_rect.x += self.values.index(self.value if isinstance(self.value, str) else round(self.value)) * self.mult
         if hasattr(self, "slider_img") and hasattr(self, "slider_rect"):
-            if hasattr(self, "pressed") and self.pressed:
-                self.slider_rect.centerx = self.mouse[0]
-                if self.slider_rect.left < 5:
-                    self.slider_rect.left = 5
-                elif self.slider_rect.right > self.rect.width - 5:
-                    self.slider_rect.right = self.rect.width - 5
+            if self.pressed:
+                self.slider_rect.left = max(self.slider_rect.left, self.rect.left + 5)
+                self.slider_rect.right = min(self.slider_rect.right, self.rect.right - 5)
                 self.value = self.values[round((self.slider_rect.x - 5) * self.ratio)]
             # self.image.fill(self.color)
-            write(self.surf, "topleft", self.text, self.font, BLACK, self.rect.x + 5, self.rect.y + 5, tex=True)
-            write(self.surf, "topright", self.value, self.font, BLACK, self.rect.x + self.image.width - 5, self.rect.y, tex=True)
+            write(self.surf, "topleft", self.text, self.font, self.text_color, self.rect.x + 5, self.rect.y + 5, tex=True)
+            write(self.surf, "topright", self.value, self.font, self.text_color, self.rect.x + self.image.width - 5, self.rect.y, tex=True)
             self.surf.blit(self.slider_img, self.slider_rect)
+        """
 
 
 def update_and_poll_widgets():
