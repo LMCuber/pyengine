@@ -8,8 +8,10 @@ from pygame.math import Vector2
 import pygame.gfxdraw
 import pygame.midi
 import pymunk
+import typing
 from colorsys import rgb_to_hsv, hsv_to_rgb, rgb_to_hls, hls_to_rgb
 from numpy import array
+import cv2
 
 
 pygame.init()
@@ -88,6 +90,76 @@ orthogonal_projection_matrix = array([
     [0, 0, 0]
 ])
 resolutions = [(640 * m, 360 * m) for m in range(1, 6)]
+
+
+def warp(surf: pygame.Surface,
+         warp_pts,
+         smooth=True,
+         out: pygame.Surface = None) -> typing.Tuple[pygame.Surface, pygame.Rect]:
+    """Stretches a pygame surface to fill a quad using cv2's perspective warp.
+
+        Args:
+            surf: The surface to transform.
+            warp_pts: A list of four xy coordinates representing the polygon to fill.
+                Points should be specified in clockwise order starting from the top left.
+            smooth: Whether to use linear interpolation for the image transformation.
+                If false, nearest neighbor will be used.
+            out: An optional surface to use for the final output. If None or not
+                the correct size, a new surface will be made instead.
+
+        Returns:
+            [0]: A Surface containing the warped image.
+            [1]: A Rect describing where to blit the output surface to make its coordinates
+                match the input coordinates.
+    """
+    if len(warp_pts) != 4:
+        raise ValueError("warp_pts must contain four points")
+
+    w, h = surf.get_size()
+    is_alpha = surf.get_flags() & pygame.SRCALPHA
+
+    # XXX throughout this method we need to swap x and y coordinates
+    # when we pass stuff between pygame and cv2. I'm not sure why .-.
+    src_corners = numpy.float32([(0, 0), (0, w), (h, w), (h, 0)])
+    quad = [tuple(reversed(p)) for p in warp_pts]
+
+    # find the bounding box of warp points
+    # (this gives the size and position of the final output surface).
+    min_x, max_x = float('inf'), -float('inf')
+    min_y, max_y = float('inf'), -float('inf')
+    for p in quad:
+        min_x, max_x = min(min_x, p[0]), max(max_x, p[0])
+        min_y, max_y = min(min_y, p[1]), max(max_y, p[1])
+    warp_bounding_box = pygame.Rect(int(min_x), int(min_y),
+                                    int(max_x - min_x),
+                                    int(max_y - min_y))
+
+    shifted_quad = [(p[0] - min_x, p[1] - min_y) for p in quad]
+    dst_corners = numpy.float32(shifted_quad)
+
+    mat = cv2.getPerspectiveTransform(src_corners, dst_corners)
+
+    orig_rgb = pygame.surfarray.pixels3d(surf)
+
+    flags = cv2.INTER_LINEAR if smooth else cv2.INTER_NEAREST
+    out_rgb = cv2.warpPerspective(orig_rgb, mat, warp_bounding_box.size, flags=flags)
+
+    if out is None or out.get_size() != out_rgb.shape[0:2]:
+        out = pygame.Surface(out_rgb.shape[0:2], pygame.SRCALPHA if is_alpha else 0)
+
+    pygame.surfarray.blit_array(out, out_rgb)
+
+    if is_alpha:
+        orig_alpha = pygame.surfarray.pixels_alpha(surf)
+        out_alpha = cv2.warpPerspective(orig_alpha, mat, warp_bounding_box.size, flags=flags)
+        alpha_px = pygame.surfarray.pixels_alpha(out)
+        alpha_px[:] = out_alpha
+    else:
+        out.set_colorkey(surf.get_colorkey())
+
+    # XXX swap x and y once again...
+    return out, pygame.Rect(warp_bounding_box.y, warp_bounding_box.x,
+                            warp_bounding_box.h, warp_bounding_box.w)
 
 
 def get_rotation_matrix_x(angle_x):
@@ -213,7 +285,11 @@ def rot_pivot(surface, angle, pivot, offset, rotate=False):
         rotated_image = pygame.transform.rotozoom(surface, -angle, 1)
     rotated_offset = offset.rotate(angle)  # Rotate the offset vector.
     # Add the offset vector to the center/pivot point to shift the rect.
+<<<<<<< HEAD
+    rect = rotated_image.get_rect(center=pivot + rotated_offset)
+=======
     rect = rotated_image.get_rect(center=pivot+rotated_offset)
+>>>>>>> df659fbd7615684b5b89c696a9ca39b29ac03f84
     return rotated_image, rect  # Return the rotated image and shifted rect.
 
 
@@ -614,7 +690,7 @@ def pg_rect_to_pil(pg_rect):
 
 
 def rgb_mult(color, factor):
-    ret_list = [int(c * factor) for c in color]
+    ret_list = [int(c * factor) for c in color[:3]] + ([color[3]] if len(color) == 4 else [])
     for index, ret in enumerate(ret_list):
         if ret > 255:
             ret_list[index] = 255
@@ -736,7 +812,7 @@ class CursorTrail:
 
 
 class Crystal:
-    def __init__(self, renderer, vertices, point_colors, connections, fills, origin, mult, radius, xa=0, ya=0, za=0, xav=0, yav=0, zav=0, rotate=True, fill_as_connections=False, normals=False, normalize=False, **kwargs):
+    def __init__(self, renderer, vertices, point_colors, connections, fills, origin, mult, radius, xa=0, ya=0, za=0, xav=0, yav=0, zav=0, rotate=True, fill_as_connections=False, normals=False, normalize=False, textures=None, **kwargs):
         self.__dict__.update(kwargs)
         self.renderer = renderer
         self.normalize = normalize
@@ -760,6 +836,7 @@ class Crystal:
         self.xav, self.yav, self.zav = xav, yav, zav
         self.rotate = rotate
         self.fill_as_connections = fill_as_connections
+        self.textures = textures if textures is not None else []
         # self.width = max([x[0] for x in self.vertices]) - min([x[0] for x in self.vertices]) * self.m
         # self.height = max([x[1] for x in self.vertices]) - min([x[1] for x in self.vertices]) * self.m
         # self.depth = max([x[2] for x in self.vertices]) - min([x[2] for x in self.vertices]) * self.m
@@ -797,11 +874,27 @@ class Crystal:
                 vector_normal = vector.dot(get_rotation_matrix_z(self.za))
                 self.updated_normals.append(vector_normal)
 
+        # fills
         self.fill_vertices = [[self.updated_vertices[x] if isinstance(x, int) else x for x in data] for data in self.fills]
         self.fill_vertices = sorted(self.fill_vertices, key=lambda x: average_z(x[1:]))
         self.fill_data = []
-        for index, data in enumerate(self.fill_vertices):
+        for index, capsule in enumerate(self.fill_vertices):
             # init lel
+            data = capsule[0]
+            d = [data]
+            for vertex in capsule[1:]:
+                # project the matrices
+                pos = vertex.dot(orthogonal_projection_matrix)
+                x, y = self.m * pos[0] + self.ox, self.m * pos[1] + self.oy
+                rect = pygame.Rect(x - self.r, y - self.r, self.r * 2, self.r * 2)
+                # self.renderer.blit(self.default_circle, rect)
+                d.append([x, y])
+            self.fill_data.append(d)
+
+        # textures
+        self.texture_vertices = [[self.updated_vertices[x] if isinstance(x, int) else x for x in data] for data in self.textures]
+        self.texture_data = []
+        for index, data in enumerate(self.texture_vertices):
             color = data[0]
             d = [color]
             for vertex in data[1:]:
@@ -811,13 +904,16 @@ class Crystal:
                 rect = pygame.Rect(x - self.r, y - self.r, self.r * 2, self.r * 2)
                 # self.renderer.blit(self.default_circle, rect)
                 d.append([x, y])
-            self.fill_data.append(d)
+            self.texture_data.append(d)
 
         for data in self.fill_data:
             if self.fill_as_connections and False:
                 self.connect_points(*data, index=False)
             else:
                 self.fill_points(*data)
+        for data in self.texture_data:
+            # self.map_texture(*data)
+            pass
         for connection in self.connections:
             self.connect_points(*connection)
         for circle in self.circles:
@@ -839,6 +935,11 @@ class Crystal:
         # setup
         fill_color = data[0] if 0 < len(data) else False
         outline_color = data[1] if 1 < len(data) else False
+        if isinstance(data[0], pygame.Surface):
+            surf = data[0]
+            fill_color = False
+        else:
+            surf = False
         # normals
         if self.normals:
             normal_index = data[2] if 2 < len(data) else False
@@ -848,6 +949,10 @@ class Crystal:
             dot = vec.dot(camera)
             fill_color = [0] + [int((dot + 1) / 2 * 255)] + [0, 255]
         # filling
+        if surf:
+            surf, rect = warp(surf, points)
+            tex = Texture.from_surface(self.renderer, surf)
+            self.renderer.blit(tex, rect)
         if len(points) == 3:
             if fill_color:
                 fill_triangle(self.renderer, fill_color, *points)
@@ -871,6 +976,15 @@ class Crystal:
             x, y = 200 * pos[0] + self.ox, 200 * pos[1] + self.oy
             rect = pygame.Rect(x - self.r, y - self.r, self.r * 3, self.r * 3)
             draw_line(self.renderer, fill_color, orect.topleft, rect.topleft)
+<<<<<<< HEAD
+
+    def map_texture(self, data, *points):
+        surf = data[0]
+        surf, rect = warp(surf, points)
+        tex = Texture.from_surface(self.renderer, surf)
+        self.renderer.blit(tex, rect)
+=======
+>>>>>>> df659fbd7615684b5b89c696a9ca39b29ac03f84
 
     def get_vertices_from_obj(self, p):
         self.vertices = []
