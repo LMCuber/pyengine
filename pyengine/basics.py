@@ -34,7 +34,10 @@ BULLET = "⁍"
 int_to_word = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"]
 
 # take a moment to appeciate this beuaty
+<<<<<<< HEAD
 print = print
+=======
+>>>>>>> df659fbd7615684b5b89c696a9ca39b29ac03f84
 pritn = print   # be cau sè
 prrint = print  # be cau sè
 pirnt = print   # be cau sè
@@ -42,9 +45,13 @@ PRINT = print   # be cau sè
 pint = print    # be cau sè
 ptrint = print  # be cau sè
 priint = print  # be cau sè
+<<<<<<< HEAD
 prinit = print  # be cau sè
 prinnt = print  # be cau sè
 priinit = print # be cau sè
+=======
+prinit = print # be cau sè
+>>>>>>> df659fbd7615684b5b89c696a9ca39b29ac03f84
 print = print
 
 epoch = time.time

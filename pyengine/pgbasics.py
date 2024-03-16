@@ -285,7 +285,11 @@ def rot_pivot(surface, angle, pivot, offset, rotate=False):
         rotated_image = pygame.transform.rotozoom(surface, -angle, 1)
     rotated_offset = offset.rotate(angle)  # Rotate the offset vector.
     # Add the offset vector to the center/pivot point to shift the rect.
+<<<<<<< HEAD
     rect = rotated_image.get_rect(center=pivot + rotated_offset)
+=======
+    rect = rotated_image.get_rect(center=pivot+rotated_offset)
+>>>>>>> df659fbd7615684b5b89c696a9ca39b29ac03f84
     return rotated_image, rect  # Return the rotated image and shifted rect.
 
 
@@ -972,12 +976,15 @@ class Crystal:
             x, y = 200 * pos[0] + self.ox, 200 * pos[1] + self.oy
             rect = pygame.Rect(x - self.r, y - self.r, self.r * 3, self.r * 3)
             draw_line(self.renderer, fill_color, orect.topleft, rect.topleft)
+<<<<<<< HEAD
 
     def map_texture(self, data, *points):
         surf = data[0]
         surf, rect = warp(surf, points)
         tex = Texture.from_surface(self.renderer, surf)
         self.renderer.blit(tex, rect)
+=======
+>>>>>>> df659fbd7615684b5b89c696a9ca39b29ac03f84
 
     def get_vertices_from_obj(self, p):
         self.vertices = []
