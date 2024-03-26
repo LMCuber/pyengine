@@ -39,6 +39,7 @@ PRINT = print   # be cau sè
 pint = print    # be cau sè
 ptrint = print  # be cau sè
 priint = print  # be cau sè
+<<<<<<< HEAD
 prinit = print  # be cau sè
 prinnt = print  # be cau sè
 priinit = print # be cau sè
@@ -795,36 +796,6 @@ class _Translator:
     def add(self, lang, dict_):
         self.saved = {}
         self.saved[lang] = dict_
-
-
-class TranslatepyTranslator(_Translator):
-    def __init__(self, lang="english"):
-        super().__init__(_TpyGoogleTranslate(), lang)
-
-    def __or__(self, other):
-        if self.lang == "english":
-            return other
-        if other not in self.saved[self.lang]:
-            t = self.service.translate(other, self.lang).result
-            self.saved[self.lang][other] = t
-            return t
-        else:
-            return self.saved[self.lang][other]
-
-
-class GoogletransTranslator(_Translator):
-    def __init__(self, lang="english"):
-        super().__init__(_GoogleGoogleTranslate(), lang)
-
-    def __or__(self, other):
-        if self.lang == "english":
-            return other
-        if other not in self.saved[self.lang]:
-            t = self.service.translate(other, self.lang).text
-            self.saved[self.lang][other] = t
-            return t
-        else:
-            return self.saved[self.lang][other]
 
 
 class Noise:
