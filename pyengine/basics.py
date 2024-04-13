@@ -39,11 +39,10 @@ PRINT = print   # be cau sè
 pint = print    # be cau sè
 ptrint = print  # be cau sè
 priint = print  # be cau sè
-<<<<<<< HEAD
 prinit = print  # be cau sè
 prinnt = print  # be cau sè
 priinit = print # be cau sè
-print = print
+print = print  # I'm gonna move to a rural farm to be a blacksmith for the rest of my life if I mispell print in yet anoother different fashon
 
 epoch = time.time
 lambda_none = lambda *a, **kwa: None
