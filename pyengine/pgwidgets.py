@@ -771,8 +771,8 @@ def update_and_poll_widgets():
                             tooltip_data.append(td)
                     else:
                         widget.last_hover = ticks()
-    # for img, pos, dest in tooltip_data:
-    #     dest.blit(img, pos)
+    for img, pos, dest in tooltip_data:
+        dest.blit(img, pos)
     ret += [[None] + x[0:2] for x in tooltip_data]
     return ret
     for cursor, cond in _eng.cursors:
