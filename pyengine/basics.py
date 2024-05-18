@@ -39,7 +39,6 @@ PRINT = print   # be cau sè
 pint = print    # be cau sè
 ptrint = print  # be cau sè
 priint = print  # be cau sè
-<<<<<<< HEAD
 prinit = print  # be cau sè
 prinnt = print  # be cau sè
 priinit = print # be cau sè
