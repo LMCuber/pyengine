@@ -609,7 +609,12 @@ def lerp_img(start, end, amount, height):
     return surf
 
 
-def write(surf, anchor, text, font, color, x, y, alpha=255, blit=True, border=None, special_flags=0, tex=False):
+
+
+def write(surf, anchor, text, font, color, x, y, alpha=255, blit=True, border=None, special_flags=0, tex=False, ignore=True):
+    if ignore:
+        # return
+        pass
     if border is not None:
         bc, bw = border, 1
         write(surf, anchor, text, font, bc, x - bw, y - bw),
@@ -814,12 +819,11 @@ class Crystal:
         self.normalize = normalize
         if isinstance(vertices, str):
             self.get_vertices_from_obj(vertices)
-            self.normals = True
         else:
             self.vertices = array(vertices)
             self.point_colors = point_colors
             self.fills = fills
-            self.normals = False
+        self.normals = normals
         self.r = radius
         self.default_circle = Texture.from_surface(self.renderer, circle(5, RED))
         self.circle_textures = [Texture.from_surface(self.renderer, circle(self.r, color)) for color in self.point_colors]
@@ -915,6 +919,17 @@ class Crystal:
         for circle in self.circles:
             with suppress(IndexError):
                 self.draw_circle(*circle)
+    
+    def save_to_file(self, path_):
+        with open(path_, "w") as f:
+            for vertex in self.vertices:
+                str_vertex = f"v {' '.join(str(x) for x in vertex)}\n"
+                f.write(str_vertex)
+            f.write("\n")
+            for fill in self.fills:
+                str_fill = f"f {' '.join(str(x + 1) + "/1/1" for x in fill[1:])}\n"
+                f.write(str_fill)
+
 
     def draw_circle(self, i, rect):
         self.renderer.blit(self.circle_textures[i], rect)
@@ -1199,6 +1214,7 @@ K_OSC = _OsC()
 
 
 class SmartSurface(pygame.Surface):
+    writed = 0
     def __init__(self, *args, **kwargs):
         og_args = list(args)
         args = og_args[:]
