@@ -271,10 +271,12 @@ class ComboBox(_Widget, _Overwriteable, ButtonBehavior):
         self.real_combo_rects = {name: pygame.Rect(self.rect.x + rect.x + xo, self.rect.y + rect.y + yo, *rect.size) for name, rect in self.combo_rects.items()}
         self.real_combo_rect = pygame.Rect(self.rect.x + self.combo_rect.x + xo, self.rect.y + self.combo_rect.y + yo, *self.combo_rect.size)
 
+
 class ToggleButton(_Widget, ButtonBehavior, _Overwriteable):
     def __init__(self, surf, cycles, pos=_DEF_WIDGET_POS, command=None, width=None, height=None, bg_color=WIDGET_GRAY, text_color=BLACK, anchor="center", exit_command=None, visible_when=None, font=None, tooltip_font=None, friends=None, disabled=False, disable_type=False, template=None, add=True, special_flags=None, tooltip=None, appends=None, as_child=False, *args, **kwargs):
         _Widget.__pre_init__(self, font)
         self.command = command
+        self.text_color = text_color
         self.bg_color = bg_color
         self.cycles = cycles
         self.cycle = 0

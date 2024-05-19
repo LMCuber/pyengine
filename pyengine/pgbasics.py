@@ -183,6 +183,13 @@ def get_rotation_matrix_z(angle_z):
     return rotation_z
 
 
+def shoelace(xs, ys):
+    left_shoelace = sum(xs[i] * ys[i + 1] for i in range(len(xs) - 1))
+    right_shoelace = sum(ys[i] * xs[i + 1] for i in range(len(xs) - 1))
+    signed_area = 0.5 * abs(left_shoelace - right_shoelace)
+    return signed_area
+
+
 # surfaces
 def circle(radius, color=BLACK):
     ret = pygame.Surface((radius * 2 + 1, radius * 2 + 1), pygame.SRCALPHA)
@@ -882,14 +889,21 @@ class Crystal:
             # init lel
             data = capsule[0]
             d = [data]
-            for vertex in capsule[1:]:
-                # project the matrices
-                pos = vertex.dot(orthogonal_projection_matrix)
-                x, y = self.m * pos[0] + self.ox, self.m * pos[1] + self.oy
-                rect = pygame.Rect(x - self.r, y - self.r, self.r * 2, self.r * 2)
-                # self.renderer.blit(self.default_circle, rect)
-                d.append([x, y])
-            self.fill_data.append(d)
+            vertices = capsule[1:]
+            xs = array([vertex[0] for vertex in vertices] + [vertices[0][0]])
+            ys = array([vertex[1] for vertex in vertices] + [vertices[0][1]])
+            # backface culling
+            signed_area = shoelace(xs, ys)
+            if signed_area > 0:
+                # final poly projection calculation
+                for vertex in vertices:
+                    # project the matrices
+                    pos = vertex.dot(orthogonal_projection_matrix)
+                    x, y = self.m * pos[0] + self.ox, self.m * pos[1] + self.oy
+                    rect = pygame.Rect(x - self.r, y - self.r, self.r * 2, self.r * 2)
+                    # self.renderer.blit(self.default_circle, rect)
+                    d.append([x, y])
+                self.fill_data.append(d)
 
         # textures
         self.texture_vertices = [[self.updated_vertices[x] if isinstance(x, int) else x for x in data] for data in self.textures]
