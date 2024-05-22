@@ -186,7 +186,7 @@ def get_rotation_matrix_z(angle_z):
 def shoelace(xs, ys):
     left_shoelace = sum(xs[i] * ys[i + 1] for i in range(len(xs) - 1))
     right_shoelace = sum(ys[i] * xs[i + 1] for i in range(len(xs) - 1))
-    signed_area = 0.5 * abs(left_shoelace - right_shoelace)
+    signed_area = 0.5 * (left_shoelace - right_shoelace)
     return signed_area
 
 
@@ -820,7 +820,7 @@ class CursorTrail:
 
 
 class Crystal:
-    def __init__(self, renderer, vertices, point_colors, connections, fills, origin, mult, radius, xa=0, ya=0, za=0, xav=0, yav=0, zav=0, rotate=True, fill_as_connections=False, normals=False, normalize=False, textures=None, **kwargs):
+    def __init__(self, renderer, vertices, point_colors, connections, fills, origin, mult, radius, xa=0, ya=0, za=0, xav=0, yav=0, zav=0, rotate=True, fill_as_connections=False, normals=False, normalize=False, textures=None, backface_culling=True, **kwargs):
         self.__dict__.update(kwargs)
         self.renderer = renderer
         self.normalize = normalize
@@ -844,6 +844,7 @@ class Crystal:
         self.rotate = rotate
         self.fill_as_connections = fill_as_connections
         self.textures = textures if textures is not None else []
+        self.backface_culling = backface_culling
         # self.width = max([x[0] for x in self.vertices]) - min([x[0] for x in self.vertices]) * self.m
         # self.height = max([x[1] for x in self.vertices]) - min([x[1] for x in self.vertices]) * self.m
         # self.depth = max([x[2] for x in self.vertices]) - min([x[2] for x in self.vertices]) * self.m
@@ -890,11 +891,15 @@ class Crystal:
             data = capsule[0]
             d = [data]
             vertices = capsule[1:]
-            xs = array([vertex[0] for vertex in vertices] + [vertices[0][0]])
-            ys = array([vertex[1] for vertex in vertices] + [vertices[0][1]])
-            # backface culling
-            signed_area = shoelace(xs, ys)
-            if signed_area > 0:
+            if self.backface_culling:
+                xs = array([vertex[0] for vertex in vertices] + [vertices[0][0]])
+                ys = array([vertex[1] for vertex in vertices] + [vertices[0][1]])
+                # backface culling
+                signed_area = shoelace(xs, ys)
+                cond = signed_area = signed_area > 0
+            else:
+                cond = True
+            if cond:
                 # final poly projection calculation
                 for vertex in vertices:
                     # project the matrices
