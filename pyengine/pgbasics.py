@@ -927,7 +927,7 @@ class Crystal:
                 f.write(str_vertex)
             f.write("\n")
             for fill in self.fills:
-                str_fill = f"f {' '.join(str(x + 1) + "/1/1" for x in fill[1:])}\n"
+                str_fill = f"f {' '.join(str(x + 1) + '/1/1' for x in fill[1:])}\n"
                 f.write(str_fill)
 
 
@@ -1026,7 +1026,7 @@ class Crystal:
                         else:
                             vertex, uv, normal = [int(x) - 1 for x in data.split("/")]
                         face.append(vertex)
-                    face.insert(0, [[rand(80, 120)] * 3 + [255], False, normal])
+                    face.insert(0, [[rand(0, 255) for _ in range(3)] + [255], False, normal])
                     if len(face) <= 5:
                         self.fills.append(face)
                 # vector normals
@@ -1116,34 +1116,52 @@ class SmartVector:
 
 
 class PhysicsEntity:
-    def __init__(self, win, size, space, x, y, m=5, r=5, d=1, e=1, body_type=pymunk.Body.DYNAMIC):
+    def __init__(self, win, size, space, x, y, m=5, r=5, d=1, e=1, w=None, h=None, body_type=pymunk.Body.DYNAMIC, shape_type="circle", color=RED, to_tex=True):
         self.win = win
         self.width, self.height = size
         self.space = space
         self.x, self.y = x, y
+        self.color = color
+        self.w, self.h = w, h
         self.body = pymunk.Body(body_type=body_type, mass=m)
-        self.body.position = (x, self.height - y)
+        self.body.position = (x, self.height - y - (self.h if self.h is not None else 0))
         self.r = r
-        self.shape = pymunk.Circle(self.body, r)
+        self.shape_type = shape_type
+        if shape_type == "circle":
+            self.shape = pymunk.Circle(self.body, r)
+            self.img = pygame.Surface([self.r * 2 + 1] * 2, pygame.SRCALPHA)
+            pygame.gfxdraw.aacircle(self.img, self.r, self.r, self.r, self.color)
+        elif shape_type == "rect":
+            self.shape = pymunk.Poly(self.body, [
+                (0, 0),
+                (self.width, 0),
+                (self.width, self.h),
+                (0, self.h)
+            ])
+            self.img = pygame.Surface((w, h))
+            self.img.fill(self.color)
         self.shape.density = d
         self.shape.elasticity = e
         self.space.add(self.body, self.shape)
-        self.img = pygame.Surface([self.r * 2 + 1] * 2, pygame.SRCALPHA)
-        pygame.gfxdraw.aacircle(self.img, self.r, self.r, self.r, RED)
-        self.img = Texture.from_surface(self.win, self.img)
+        if to_tex:
+            self.img = Texture.from_surface(self.win, self.img)
 
     def draw(self):
-        body_pos = [self.body.position[0], self.height - self.body.position[1]]
-        body_pos = [int(p - self.r) for p in body_pos]
-        body_rect = pygame.Rect(*body_pos, self.r * 2, self.r * 2)
-        self.win.blit(self.img, body_rect)
+        if self.shape_type == "circle":
+            body_pos = [self.body.position[0], self.height - self.body.position[1]]
+            body_pos = [p - self.r for p in body_pos]
+            self.body_rect = pygame.Rect(*body_pos, self.r * 2, self.r * 2)
+        elif self.shape_type == "rect":
+            body_pos = [self.body.position[0], self.height - self.body.position[1] - self.h]
+            self.body_rect = pygame.Rect(body_pos, (self.w, self.h))
+        self.win.blit(self.img, self.body_rect)
 
     def go(self, pos):
         self.body.position = (pos[0], self.height - pos[1])
 
 
 class PhysicsEntityConnector:
-    def __init__(self, win, size, space, src, dest):
+    def __init__(self, win, size, space, src, dest, anchor_a=(0, 0), anchor_b=(0, 0), to_tex=True):
         self.win = win
         self.width, self.height = size
         self.space = space
@@ -1151,16 +1169,21 @@ class PhysicsEntityConnector:
             raise ValueError(f"One of the two physics entities must be a dynamic body instead of static ({src.body.body_type}, {dest.body.body_type})")
         self.src = src
         self.dest = dest
-        self.joint = pymunk.PinJoint(self.src.body, self.dest.body)
-        # self.limit_joint = pymunk.SlideJoint()
+        self.anchor_a = anchor_a
+        self.anchor_b = anchor_b
+        self.joint = pymunk.PinJoint(self.src.body, self.dest.body, anchor_a=self.anchor_a, anchor_b=self.anchor_b)
         self.joint.collide_bodies = False
         self.space.add(self.joint)
+        self.to_tex = to_tex
 
     def draw(self):
-        src_pos = [self.src.body.position[0], self.height - self.src.body.position[1]]
-        dest_pos = [self.dest.body.position[0], self.height - self.dest.body.position[1]]
-        self.win.draw_color = (27, 120, 60, 255)
-        self.win.draw_line(src_pos, dest_pos)
+        src_pos = [self.src.body.position[0] + self.anchor_a[0], self.height - self.src.body.position[1] + self.anchor_a[1]]
+        dest_pos = [self.dest.body.position[0] + self.anchor_b[0], self.height - self.dest.body.position[1] + self.anchor_b[1]]
+        if self.to_tex:
+            self.win.draw_color = (27, 120, 60, 255)
+            self.win.draw_line(src_pos, dest_pos)
+        else:
+            pygame.draw.line(self.win, (27, 120, 60, 255), src_pos, dest_pos)
 
 
 class _Key:
