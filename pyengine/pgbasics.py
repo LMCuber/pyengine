@@ -183,6 +183,13 @@ def get_rotation_matrix_z(angle_z):
     return rotation_z
 
 
+def shoelace(xs, ys):
+    left_shoelace = sum(xs[i] * ys[i + 1] for i in range(len(xs) - 1))
+    right_shoelace = sum(ys[i] * xs[i + 1] for i in range(len(xs) - 1))
+    signed_area = 0.5 * (left_shoelace - right_shoelace)
+    return signed_area
+
+
 # surfaces
 def circle(radius, color=BLACK):
     ret = pygame.Surface((radius * 2 + 1, radius * 2 + 1), pygame.SRCALPHA)
@@ -813,7 +820,7 @@ class CursorTrail:
 
 
 class Crystal:
-    def __init__(self, renderer, vertices, point_colors, connections, fills, origin, mult, radius, xa=0, ya=0, za=0, xav=0, yav=0, zav=0, rotate=True, fill_as_connections=False, normals=False, normalize=False, textures=None, **kwargs):
+    def __init__(self, renderer, vertices, point_colors, connections, fills, origin, mult, radius, xa=0, ya=0, za=0, xav=0, yav=0, zav=0, rotate=True, fill_as_connections=False, normals=False, normalize=False, textures=None, backface_culling=True, **kwargs):
         self.__dict__.update(kwargs)
         self.renderer = renderer
         self.normalize = normalize
@@ -837,6 +844,7 @@ class Crystal:
         self.rotate = rotate
         self.fill_as_connections = fill_as_connections
         self.textures = textures if textures is not None else []
+        self.backface_culling = backface_culling
         # self.width = max([x[0] for x in self.vertices]) - min([x[0] for x in self.vertices]) * self.m
         # self.height = max([x[1] for x in self.vertices]) - min([x[1] for x in self.vertices]) * self.m
         # self.depth = max([x[2] for x in self.vertices]) - min([x[2] for x in self.vertices]) * self.m
@@ -882,14 +890,25 @@ class Crystal:
             # init lel
             data = capsule[0]
             d = [data]
-            for vertex in capsule[1:]:
-                # project the matrices
-                pos = vertex.dot(orthogonal_projection_matrix)
-                x, y = self.m * pos[0] + self.ox, self.m * pos[1] + self.oy
-                rect = pygame.Rect(x - self.r, y - self.r, self.r * 2, self.r * 2)
-                # self.renderer.blit(self.default_circle, rect)
-                d.append([x, y])
-            self.fill_data.append(d)
+            vertices = capsule[1:]
+            if self.backface_culling:
+                xs = array([vertex[0] for vertex in vertices] + [vertices[0][0]])
+                ys = array([vertex[1] for vertex in vertices] + [vertices[0][1]])
+                # backface culling
+                signed_area = shoelace(xs, ys)
+                cond = signed_area = signed_area > 0
+            else:
+                cond = True
+            if cond:
+                # final poly projection calculation
+                for vertex in vertices:
+                    # project the matrices
+                    pos = vertex.dot(orthogonal_projection_matrix)
+                    x, y = self.m * pos[0] + self.ox, self.m * pos[1] + self.oy
+                    rect = pygame.Rect(x - self.r, y - self.r, self.r * 2, self.r * 2)
+                    # self.renderer.blit(self.default_circle, rect)
+                    d.append([x, y])
+                self.fill_data.append(d)
 
         # textures
         self.texture_vertices = [[self.updated_vertices[x] if isinstance(x, int) else x for x in data] for data in self.textures]

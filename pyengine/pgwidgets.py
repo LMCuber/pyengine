@@ -151,17 +151,16 @@ class ButtonBehavior:
 
 class _Overwriteable:
     def overwrite(self, text):
-        w, h = [3 + size + 3 for size in self.font.size(str(text))]
-        self.init_size(w, h, text)
+        w, h = self.width, self.height
         if isinstance(self, Checkbox):
             w += self.box.get_width() + 10
+        self.init_size(w, h, text=True)
         self.image.fill(self.bg_color)
         if isinstance(self, Checkbox):
             write(self.image, "topleft", text, self.font, self.text_color, 30, 5)
         else:
-            write(self.image, "center", text, self.font, self.text_color, *[s / 2 for s in self.image.get_size()])
+            write(self.image, "center", text, self.font, self.text_color, self.image.get_width() / 2, self.image.get_height() / 2)
         self.image = Texture.from_surface(self.surf, self.image)
-        # self.replace_og(self.image)
         self.rect = self.image.get_rect(center=self.rect.center)
 
     def write_text(self, text, font, text_color, text_orien):
@@ -211,6 +210,8 @@ class ComboBox(_Widget, _Overwriteable, ButtonBehavior):
         self.hover_color = hover_color
         self.click_effect = click_effect
         self.unavailable = unavailable or []
+        self.width = width
+        self.height = height
         self.init_size(width, height, text)
         self.image.fill(bg_color)
         write(self.image, "center", self.text, self.font, text_color, *[s / 2 for s in self.image.get_size()])
@@ -237,6 +238,7 @@ class ComboBox(_Widget, _Overwriteable, ButtonBehavior):
             write(self.combo_image, "topleft", combo, font, text_c, x + 3, y + 3)
             self.combo_rects[combo] = combo_rect
             y += combo_rect.height
+        self.num_combos = i + 1
         self.combo_image = Texture.from_surface(surf, self.combo_image)
         self.combo_rect = self.combo_image.get_rect(topleft=self.rect.topleft)
         self.real_combo_rects = None
@@ -258,6 +260,7 @@ class ComboBox(_Widget, _Overwriteable, ButtonBehavior):
                             self.command(name)
 
     def update(self):
+        ButtonBehavior.update(self)
         if self.extended:
             self.reload_combo_rects()
             self.surf.blit(self.combo_image, self.real_combo_rect)
@@ -271,15 +274,19 @@ class ComboBox(_Widget, _Overwriteable, ButtonBehavior):
         self.real_combo_rects = {name: pygame.Rect(self.rect.x + rect.x + xo, self.rect.y + rect.y + yo, *rect.size) for name, rect in self.combo_rects.items()}
         self.real_combo_rect = pygame.Rect(self.rect.x + self.combo_rect.x + xo, self.rect.y + self.combo_rect.y + yo, *self.combo_rect.size)
 
+
 class ToggleButton(_Widget, ButtonBehavior, _Overwriteable):
     def __init__(self, surf, cycles, pos=_DEF_WIDGET_POS, command=None, width=None, height=None, bg_color=WIDGET_GRAY, text_color=BLACK, anchor="center", exit_command=None, visible_when=None, font=None, tooltip_font=None, friends=None, disabled=False, disable_type=False, template=None, add=True, special_flags=None, tooltip=None, appends=None, as_child=False, *args, **kwargs):
         _Widget.__pre_init__(self, font)
         self.command = command
+        self.text_color = text_color
         self.bg_color = bg_color
         self.cycles = cycles
         self.cycle = 0
         self.text = self.cycles[self.cycle]
         text = self.text
+        self.width = width
+        self.height = height
         self.init_size(width, height, text)
         self.image.fill(self.bg_color)
         write(self.image, "center", text, self.font, text_color, *[s / 2 for s in self.image.get_size()])
@@ -795,17 +802,6 @@ def set_default_tooltip_fonts(font):
 
 def set_cursor_when(cursor, when):
     _eng.cursors.append((cursor, when))
-
-
-def update_button_behavior(itr):
-    update = False
-    mouse = pygame.mouse.get_pos()
-    for i, widget in enumerate(itr + iter_widgets()):
-        if not isinstance(widget, _Widget) or isinstance(widget, ButtonBehavior):
-            if widget.rect.collidepoint(mouse):
-                widget.image.set_alpha(150)
-            else:
-                widget.image.set_alpha(255)
 
 
 def befriend_iterable(itr):
