@@ -140,11 +140,13 @@ class ButtonBehavior:
         else:
             self.image.alpha = 255
 
-    def click(self, left=True):
-        if left:
-            self.command(*[self] if self.pass_self else [])
-        else:
+    def click(self, right=False, middle=False):
+        if right:
             self.right_command(*[self] if self.pass_self_right else [])
+        elif middle:
+            self.middle_command(*[self] if self.pass_self_right else [])
+        else:
+            self.command(*[self] if self.pass_self else [])
         if self.click_effect:
             Thread(target=self.zoom, args=["out"]).start()
 
@@ -171,7 +173,7 @@ class _Overwriteable:
 
 
 class Button(_Widget, _Overwriteable, ButtonBehavior):
-    def __init__(self, surf, text, command, pass_self=False, right_command=None, pass_self_right=False, width=None, height=None, pos=_DEF_WIDGET_POS, text_color=BLACK, text_orien="center", bg_color=WIDGET_GRAY, anchor="center", exit_command=None, visible_when=None, font=None, tooltip_font=None, friends=None, click_effect=False, disabled=False, disable_type=False, template=None, add=True, special_flags=None, tooltip=None, appends=None, as_child=False, *args, **kwargs):
+    def __init__(self, surf, text, command, pass_self=False, right_command=None, middle_command=None, pass_self_right=False, pass_self_middle=False, width=None, height=None, pos=_DEF_WIDGET_POS, text_color=BLACK, text_orien="center", bg_color=WIDGET_GRAY, anchor="center", exit_command=None, visible_when=None, font=None, tooltip_font=None, friends=None, click_effect=False, disabled=False, disable_type=False, template=None, add=True, special_flags=None, tooltip=None, appends=None, as_child=False, *args, **kwargs):
         _Widget.__pre_init__(self, font, text)
         self.text = text
         self.bg_color = bg_color
@@ -183,7 +185,9 @@ class Button(_Widget, _Overwriteable, ButtonBehavior):
         self.command = command
         self.pass_self = pass_self
         self.right_command = right_command
+        self.middle_command = middle_command
         self.pass_self_right = pass_self_right
+        self.pass_self_middle = pass_self_middle
         _Widget.__init__(self, self.image, surf, visible_when, friends, pos, anchor, width, height, exit_command, disabled, disable_type, template, type(self), add, special_flags, tooltip, appends, as_child)
 
     def process_event(self, event):
@@ -191,11 +195,16 @@ class Button(_Widget, _Overwriteable, ButtonBehavior):
             if event.button == 1:
                 if self.rect.collidepoint(pygame.mouse.get_pos()):
                     self.click()
+            
+            elif event.button == 2:
+                if self.middle_command is not None:
+                    if self.rect.collidepoint(pygame.mouse.get_pos()):
+                        self.click(middle=True)
 
             elif event.button == 3:
                 if self.right_command is not None:
                     if self.rect.collidepoint(pygame.mouse.get_pos()):
-                        self.click(left=False)
+                        self.click(right=True)
 
 
 class ComboBox(_Widget, _Overwriteable, ButtonBehavior):

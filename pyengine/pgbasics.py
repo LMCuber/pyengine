@@ -1381,3 +1381,63 @@ class Font:
         rect = template.get_rect()
         setattr(rect, anchor, pos)
         surf.blit(template, rect)
+
+
+class RadarChart:
+    def __init__(self, win, data, x, y, r, line_color, font):
+        self.win = win
+        self.x, self.y = x, y
+        self.r = r
+        self.line_color = line_color
+        self.max_ = len(data)
+        self.max_value = max(data, key=lambda x: x[1])[1]
+        self.angles = [a / self.max_ * 2 * pi + 1 / 12 * 2 * pi for a in range(self.max_)]
+        self.texts = [d[0] for d in data]
+        self.values = [d[1] for d in data]
+        self.revals = self.values.copy()
+        self.font = font
+
+    def update(self):
+        late_lines = []
+        # update values
+        for i, val in enumerate(self.values):
+            self.values[i] += (self.revals[i] - val) * 0.08
+        # render
+        for i, angle in enumerate(self.angles):
+            # var init
+            num_r = 7
+            sec_color = (120, 120, 120, 255)
+            try:
+                self.angles[i + 1]
+            except IndexError:
+                index_error = True
+            else:
+                index_error = False
+            # borders
+            for r in range(num_r + 1):
+                color = self.line_color if r / num_r == 1 else sec_color
+                if index_error:
+                    nx, ny = r / num_r * self.r * cos(self.angles[0]), r / num_r * self.r * sin(self.angles[0])
+                else:
+                    nx, ny = r / num_r * self.r * cos(self.angles[i + 1]), r / num_r * self.r * sin(self.angles[i + 1])
+                cx, cy = r / num_r * self.r * cos(angle), r / num_r * self.r * sin(angle)
+                draw_line(self.win, color, (self.x + cx, self.y + cy), (self.x + nx, self.y + ny))
+            draw_line(self.win, sec_color, (self.x + cx, self.y + cy), (self.x, self.y))
+            # actul stat
+            if index_error:
+                nx, ny = self.values[0] / self.max_value * self.r * cos(self.angles[0]), self.values[0] / self.max_value * self.r * sin(self.angles[0])
+            else:
+                nx, ny = self.values[i + 1] / self.max_value * self.r * cos(self.angles[i + 1]), self.values[i + 1] / self.max_value * self.r * sin(self.angles[i + 1])
+            cx, cy = self.values[i] / self.max_value * self.r * cos(self.angles[i]), self.values[i] / self.max_value * self.r * sin(self.angles[i])
+            late_lines.append((SLIME_GREEN, (self.x + cx, self.y + cy), (self.x + nx, self.y + ny)))
+            # text
+            text = self.texts[i]
+            tm = 1.2
+            tx, ty = self.r * tm * cos(self.angles[i]), self.r * tm * sin(self.angles[i])
+            write(self.win, "center", text, self.font, WHITE, self.x + tx, self.y + ty, tex=True)
+        for data in late_lines:
+            draw_line(self.win, *data)
+    
+    def revaluate(self, *pairs):
+        for text, value in pairs:
+            self.revals[self.texts.index(text)] = value
