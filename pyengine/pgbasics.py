@@ -837,7 +837,7 @@ class Crystal:
         self.connections = connections
         if False:
             self.connections = [[YELLOW] + f[1:] for f in fills]
-        self.ox, self.oy = origin
+        self.oox, self.ooy = origin
         self.m = mult
         self.xa, self.ya, self.za = xa, ya, za
         self.xav, self.yav, self.zav = xav, yav, zav
