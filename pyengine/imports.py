@@ -20,6 +20,7 @@ from warnings import warn
 from pprint import pprint
 from numpy import array
 import PIL.ImageFilter
+from enum import Enum
 import contextlib
 import PIL.Image
 import functools

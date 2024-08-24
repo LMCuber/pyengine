@@ -4,7 +4,7 @@ from .pilbasics import pil_to_pg
 import pygame
 from pygame.locals import *
 from pygame._sdl2.video import Window, Renderer, Texture, Image
-from pygame.math import Vector2
+from pygame.math import Vector2, Vector3
 import pygame.gfxdraw
 import pygame.midi
 import pymunk
@@ -12,6 +12,7 @@ import typing
 from colorsys import rgb_to_hsv, hsv_to_rgb, rgb_to_hls, hls_to_rgb
 from numpy import array
 import cv2
+from scipy.spatial import Delaunay
 
 
 pygame.init()
@@ -245,25 +246,6 @@ def draw_triangle(ren, color, p1, p2, p3):
 def fill_triangle(ren, color, p1, p2, p3):
     ren.draw_color = color
     ren.fill_triangle(p1, p2, p3)
-
-
-def mult_matrix(a, b):
-    a_rows = len(a)
-    a_cols = len(a[0])
-
-    b_rows = len(b)
-    b_cols = len(b[0])
-    # Dot product matrix dimentions = a_rows x b_cols
-    product = [[0 for _ in range(b_cols)] for _ in range(a_rows)]
-
-    if a_cols == b_rows:
-        for i in range(a_rows):
-            for j in range(b_cols):
-                for k in range(b_rows):
-                    product[i][j] += a[i][k] * b[k][j]
-    else:
-        print("INCOMPATIBLE MATRIX SIZES")
-    return product
 
 
 def rot_pivot(image, pos, originPos, angle):
@@ -512,7 +494,7 @@ def rand_rgba():
     return tuple(rand(0, 255) for _ in range(3)) + (255,)
 
 
-def darken(pg_img, factor=0.7):
+def darken(pg_img, factor):
     ret = pg_to_pil(pg_img)
     enhancer = PIL.ImageEnhance.Brightness(ret)
     ret = enhancer.enhance(factor)
@@ -624,10 +606,10 @@ def write(surf, anchor, text, font, color, x, y, alpha=255, blit=True, border=No
         pass
     if border is not None:
         bc, bw = border, 1
-        write(surf, anchor, text, font, bc, x - bw, y - bw),
-        write(surf, anchor, text, font, bc, x + bw, y - bw),
-        write(surf, anchor, text, font, bc, x - bw, y + bw),
-        write(surf, anchor, text, font, bc, x + bw, y + bw)
+        write(surf, anchor, text, font, bc, x - bw, y - bw, special_flags=special_flags),
+        write(surf, anchor, text, font, bc, x + bw, y - bw, special_flags=special_flags),
+        write(surf, anchor, text, font, bc, x - bw, y + bw, special_flags=special_flags),
+        write(surf, anchor, text, font, bc, x + bw, y + bw, special_flags=special_flags)
     text = font.render(str(text), True, color)
     if tex:
         text = Texture.from_surface(surf, text)
@@ -819,6 +801,10 @@ class CursorTrail:
             self.surf.blit(img, rect)
 
 
+class FillOptions(Enum):
+    DELAUNAY = 1
+
+
 class Crystal:
     def __init__(self, renderer, vertices, point_colors, connections, fills, origin, mult, radius, xa=0, ya=0, za=0, xav=0, yav=0, zav=0, rotate=True, fill_as_connections=False, normals=False, normalize=False, textures=None, backface_culling=True, **kwargs):
         self.__dict__.update(kwargs)
@@ -830,6 +816,8 @@ class Crystal:
             self.vertices = array(vertices)
             self.point_colors = point_colors
             self.fills = fills
+        if self.fills == FillOptions.DELAUNAY:
+            self.get_delaunay()
         self.normals = normals
         self.r = radius
         self.default_circle = Texture.from_surface(self.renderer, circle(5, RED))
@@ -849,10 +837,14 @@ class Crystal:
         # self.height = max([x[1] for x in self.vertices]) - min([x[1] for x in self.vertices]) * self.m
         # self.depth = max([x[2] for x in self.vertices]) - min([x[2] for x in self.vertices]) * self.m
 
+    # crystal update
     def update(self):
         self.draw()
 
+    # crystal draw
     def draw(self):
+        # buffer image
+        pass
         self.points = []
         self.circles = []
         self.updated_vertices = []
@@ -862,35 +854,40 @@ class Crystal:
             self.xa += self.xav
             self.ya += self.yav
             self.za += self.zav
+        # rounding angles for caching
+        # nuh uh
+        xa, ya, za = self.xa, self.ya, self.za
         for index, vertex in enumerate(self.vertices):
             # rotate the matrices
-            vertex = vertex.dot(get_rotation_matrix_x(self.xa))
-            vertex = vertex.dot(get_rotation_matrix_y(self.ya))
-            vertex = vertex.dot(get_rotation_matrix_z(self.za))
+            vertex = vertex.dot(get_rotation_matrix_x(xa))
+            vertex = vertex.dot(get_rotation_matrix_y(ya))
+            vertex = vertex.dot(get_rotation_matrix_z(za))
             self.updated_vertices.append(vertex)
             # project the matrices
             pos = vertex.dot(orthogonal_projection_matrix)
-            x, y = self.m * pos[0] + self.ox, self.m * pos[1] + self.oy
+            x, y = self.m * pos[0] + self.oox, self.m * pos[1] + self.ooy
             rect = pygame.Rect(x - self.r, y - self.r, self.r * 2, self.r * 2)
             self.points.append((x, y))
             self.circles.append([index, rect])
         if self.normals:
             for index, vector in enumerate(self.vertex_normals):
                 # rotate the matrices
-                vector = vector.dot(get_rotation_matrix_x(self.xa))
-                vector = vector.dot(get_rotation_matrix_y(self.ya))
-                vector_normal = vector.dot(get_rotation_matrix_z(self.za))
+                vector = vector.dot(get_rotation_matrix_x(xa))
+                vector = vector.dot(get_rotation_matrix_y(ya))
+                vector_normal = vector.dot(get_rotation_matrix_z(za))
                 self.updated_normals.append(vector_normal)
 
         # fills
-        self.fill_vertices = [[self.updated_vertices[x] if isinstance(x, int) else x for x in data] for data in self.fills]
-        self.fill_vertices = sorted(self.fill_vertices, key=lambda x: average_z(x[1:]))
+
+        self.fill_vertices = [[fill[0], [self.updated_vertices[x] for x in fill[1]]] for fill in self.fills]
+        self.fill_vertices = sorted(self.fill_vertices, key=lambda x: average_z(x[1]))
         self.fill_data = []
+
         for index, capsule in enumerate(self.fill_vertices):
             # init lel
             data = capsule[0]
             d = [data]
-            vertices = capsule[1:]
+            vertices = capsule[1]
             if self.backface_culling:
                 xs = array([vertex[0] for vertex in vertices] + [vertices[0][0]])
                 ys = array([vertex[1] for vertex in vertices] + [vertices[0][1]])
@@ -904,7 +901,7 @@ class Crystal:
                 for vertex in vertices:
                     # project the matrices
                     pos = vertex.dot(orthogonal_projection_matrix)
-                    x, y = self.m * pos[0] + self.ox, self.m * pos[1] + self.oy
+                    x, y = self.m * pos[0] + self.oox, self.m * pos[1] + self.ooy
                     rect = pygame.Rect(x - self.r, y - self.r, self.r * 2, self.r * 2)
                     # self.renderer.blit(self.default_circle, rect)
                     d.append([x, y])
@@ -919,7 +916,7 @@ class Crystal:
             for vertex in data[1:]:
                 # project the matrices
                 pos = vertex.dot(orthogonal_projection_matrix)
-                x, y = self.m * pos[0] + self.ox, self.m * pos[1] + self.oy
+                x, y = self.m * pos[0] + self.oox, self.m * pos[1] + self.ooy
                 rect = pygame.Rect(x - self.r, y - self.r, self.r * 2, self.r * 2)
                 # self.renderer.blit(self.default_circle, rect)
                 d.append([x, y])
@@ -938,7 +935,7 @@ class Crystal:
         for circle in self.circles:
             with suppress(IndexError):
                 self.draw_circle(*circle)
-    
+
     def save_to_file(self, path_):
         with open(path_, "w") as f:
             for vertex in self.vertices:
@@ -1000,10 +997,10 @@ class Crystal:
         if self.normals:
             farther = normal * 1.4
             pos = normal.dot(orthogonal_projection_matrix)
-            x, y = 200 * pos[0] + self.ox, 200 * pos[1] + self.oy
+            x, y = 200 * pos[0] + self.oox, 200 * pos[1] + self.ooy
             orect = pygame.Rect(x - self.r, y - self.r, self.r * 3, self.r * 3)
             pos = farther.dot(orthogonal_projection_matrix)
-            x, y = 200 * pos[0] + self.ox, 200 * pos[1] + self.oy
+            x, y = 200 * pos[0] + self.oox, 200 * pos[1] + self.ooy
             rect = pygame.Rect(x - self.r, y - self.r, self.r * 3, self.r * 3)
             draw_line(self.renderer, fill_color, orect.topleft, rect.topleft)
 
@@ -1059,6 +1056,11 @@ class Crystal:
             # self.vertices = [[(x - min_) / (max_ - min_) for x in vertex] for vertex in self.vertices]
             self.vertices = [[x / max_ for x in vertex] for vertex in self.vertices]
         self.vertices = array(self.vertices)
+
+    def get_delaunay(self):
+        self.fills = []
+        for poly in Delaunay(self.vertices).simplices:
+            self.fills.append([[rgb_mult(DARK_GRAY, randf(0.8, 1.2)), WHITE], poly])
 
 
 class CImage(Image):
@@ -1437,7 +1439,7 @@ class RadarChart:
             write(self.win, "center", text, self.font, WHITE, self.x + tx, self.y + ty, tex=True)
         for data in late_lines:
             draw_line(self.win, *data)
-    
+
     def revaluate(self, *pairs):
         for text, value in pairs:
             self.revals[self.texts.index(text)] = value

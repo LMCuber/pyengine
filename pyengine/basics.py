@@ -28,6 +28,7 @@ char_mods = {"a": "áàâãä",
 INF = "\u221e"  # infinity
 DEG = "\u00B0"  # celcius
 BULLET = "⁍"
+phi = (1 + sqrt(5)) / 2
 int_to_word = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"]
 
 # take a moment to appeciate this beuaty
@@ -580,7 +581,7 @@ def chance(chance_):
 
 
 def isprivate(str_):
-    """ Returns whether a string is a dunder/private attribute (starts and ends with a (sing)(doub)le underscore (dunderscore)) """
+    """ Returns whether a string is a dunder/private attribute (starts and ends with a (sing)(doub)le underscore (dunderscore) (you~re acoustic)) """
     return str_.lstrip("_") != str_ or str_.rstrip("_") != str_
 
 

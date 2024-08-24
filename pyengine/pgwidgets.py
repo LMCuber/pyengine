@@ -195,7 +195,7 @@ class Button(_Widget, _Overwriteable, ButtonBehavior):
             if event.button == 1:
                 if self.rect.collidepoint(pygame.mouse.get_pos()):
                     self.click()
-            
+
             elif event.button == 2:
                 if self.middle_command is not None:
                     if self.rect.collidepoint(pygame.mouse.get_pos()):
@@ -738,29 +738,6 @@ class Slider(_Widget):
             self.surf.blit(self.slider_img, self.slider_rect)
         if self.value != prev_value:
             self._exec_command(self.on_move_command, None, self.value)
-
-
-
-        """
-        if len(threading.enumerate()) == 1:
-            if not hasattr(self, "slider_img"):
-                self.slider_img = pygame.Surface((7, self.image.height / 2 - 4))
-                self.slider_img.fill(self.slider_color)
-                self.slider_img = Texture.from_surface(self.surf, self.slider_img)
-            if not hasattr(self, "slider_rect"):
-                self.slider_rect = self.slider_img.get_rect(bottomleft=(self.rect.x + 5, self.rect.y + self.image.height - 8))
-                with suppress(ValueError):
-                    self.slider_rect.x += self.values.index(self.value if isinstance(self.value, str) else round(self.value)) * self.mult
-        if hasattr(self, "slider_img") and hasattr(self, "slider_rect"):
-            if self.pressed:
-                self.slider_rect.left = max(self.slider_rect.left, self.rect.left + 5)
-                self.slider_rect.right = min(self.slider_rect.right, self.rect.right - 5)
-                self.value = self.values[round((self.slider_rect.x - 5) * self.ratio)]
-            # self.image.fill(self.color)
-            write(self.surf, "topleft", self.text, self.font, self.text_color, self.rect.x + 5, self.rect.y + 5, tex=True)
-            write(self.surf, "topright", self.value, self.font, self.text_color, self.rect.x + self.image.width - 5, self.rect.y, tex=True)
-            self.surf.blit(self.slider_img, self.slider_rect)
-        """
 
 
 def update_and_poll_widgets():
