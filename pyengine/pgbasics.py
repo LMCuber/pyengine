@@ -248,8 +248,6 @@ def fill_triangle(ren, color, p1, p2, p3):
     ren.fill_triangle(p1, p2, p3)
 
 
-<<<<<<< HEAD
-=======
 def rgb_to_grayscale(color):
     """
     r, g, b, a = color
@@ -284,7 +282,6 @@ def mult_matrix(a, b):
     return product
 
 
->>>>>>> 851c632e518c992105987617cd60320985936f86
 def rot_pivot(image, pos, originPos, angle):
     image_rect = image.get_rect(topleft = (pos[0] - originPos[0], pos[1]-originPos[1]))
     offset_center_to_pivot = pygame.math.Vector2(pos) - image_rect.center
@@ -838,15 +835,6 @@ class CursorTrail:
             self.surf.blit(img, rect)
 
 
-<<<<<<< HEAD
-class FillOptions(Enum):
-    DELAUNAY = 1
-
-
-class Crystal:
-    def __init__(self, renderer, vertices, point_colors, connections, fills, origin, mult, radius, xa=0, ya=0, za=0, xav=0, yav=0, zav=0, rotate=True, fill_as_connections=False, normals=False, normalize=False, textures=None, backface_culling=True, **kwargs):
-        self.__dict__.update(kwargs)
-=======
 class Lerper:
     def __init__(self, speed, **kwargs):
         self.speed = speed
@@ -871,7 +859,6 @@ class Lerper:
 class Crystal(Lerper):
     def __init__(self, renderer, vertices, point_colors, connections, fills, origin, mult, radius, xa=0, ya=0, za=0, xav=0, yav=0, zav=0, rotate=True, fill_as_connections=False, normals=False, normalize=False, textures=None, backface_culling=True, speed=None, **kwargs):
         super().__init__(speed, **kwargs)
->>>>>>> 851c632e518c992105987617cd60320985936f86
         self.renderer = renderer
         self.normalize = normalize
         if isinstance(vertices, str):
@@ -908,15 +895,12 @@ class Crystal(Lerper):
 
     # crystal draw
     def draw(self):
-<<<<<<< HEAD
         # buffer image
         pass
-=======
         # lerper update
         if self.update_lerp:
             super().update()
         #
->>>>>>> 851c632e518c992105987617cd60320985936f86
         self.points = []
         self.circles = []
         self.updated_vertices = []
