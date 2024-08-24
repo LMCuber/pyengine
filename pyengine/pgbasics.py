@@ -248,6 +248,43 @@ def fill_triangle(ren, color, p1, p2, p3):
     ren.fill_triangle(p1, p2, p3)
 
 
+<<<<<<< HEAD
+=======
+def rgb_to_grayscale(color):
+    """
+    r, g, b, a = color
+    r *= 0.3
+    g *= 0.59
+    b *= 0.11
+    gray = r + g + b
+    gray = [gray] * 3
+    """
+    # you COULD do that^, or you could just do this instead:
+    color = color[:3]
+    gray = [sum(color) / len(color)] * 3
+    return gray
+
+
+def mult_matrix(a, b):
+    a_rows = len(a)
+    a_cols = len(a[0])
+
+    b_rows = len(b)
+    b_cols = len(b[0])
+    # Dot product matrix dimentions = a_rows x b_cols
+    product = [[0 for _ in range(b_cols)] for _ in range(a_rows)]
+
+    if a_cols == b_rows:
+        for i in range(a_rows):
+            for j in range(b_cols):
+                for k in range(b_rows):
+                    product[i][j] += a[i][k] * b[k][j]
+    else:
+        print("INCOMPATIBLE MATRIX SIZES")
+    return product
+
+
+>>>>>>> 851c632e518c992105987617cd60320985936f86
 def rot_pivot(image, pos, originPos, angle):
     image_rect = image.get_rect(topleft = (pos[0] - originPos[0], pos[1]-originPos[1]))
     offset_center_to_pivot = pygame.math.Vector2(pos) - image_rect.center
@@ -801,6 +838,7 @@ class CursorTrail:
             self.surf.blit(img, rect)
 
 
+<<<<<<< HEAD
 class FillOptions(Enum):
     DELAUNAY = 1
 
@@ -808,6 +846,32 @@ class FillOptions(Enum):
 class Crystal:
     def __init__(self, renderer, vertices, point_colors, connections, fills, origin, mult, radius, xa=0, ya=0, za=0, xav=0, yav=0, zav=0, rotate=True, fill_as_connections=False, normals=False, normalize=False, textures=None, backface_culling=True, **kwargs):
         self.__dict__.update(kwargs)
+=======
+class Lerper:
+    def __init__(self, speed, **kwargs):
+        self.speed = speed
+        self.lerps = []
+        for k, v in kwargs.items():
+            if k.startswith("target_"):
+                setattr(self, k, v)
+                setattr(self, k.removeprefix("target_"), v)
+                self.lerps.append(k.removeprefix("target_"))
+    
+    def update(self):
+        for cur in self.lerps:
+            cur_value = getattr(self, cur)
+            targ = "target_" + cur
+            targ_value = getattr(self, targ)
+            setattr(self, cur, cur_value + (targ_value - cur_value) * self.speed)
+
+    def change_lerp(self, attr, value):
+        setattr(self, attr, value)
+
+
+class Crystal(Lerper):
+    def __init__(self, renderer, vertices, point_colors, connections, fills, origin, mult, radius, xa=0, ya=0, za=0, xav=0, yav=0, zav=0, rotate=True, fill_as_connections=False, normals=False, normalize=False, textures=None, backface_culling=True, speed=None, **kwargs):
+        super().__init__(speed, **kwargs)
+>>>>>>> 851c632e518c992105987617cd60320985936f86
         self.renderer = renderer
         self.normalize = normalize
         if isinstance(vertices, str):
@@ -833,6 +897,7 @@ class Crystal:
         self.fill_as_connections = fill_as_connections
         self.textures = textures if textures is not None else []
         self.backface_culling = backface_culling
+        self.update_lerp = True
         # self.width = max([x[0] for x in self.vertices]) - min([x[0] for x in self.vertices]) * self.m
         # self.height = max([x[1] for x in self.vertices]) - min([x[1] for x in self.vertices]) * self.m
         # self.depth = max([x[2] for x in self.vertices]) - min([x[2] for x in self.vertices]) * self.m
@@ -843,8 +908,15 @@ class Crystal:
 
     # crystal draw
     def draw(self):
+<<<<<<< HEAD
         # buffer image
         pass
+=======
+        # lerper update
+        if self.update_lerp:
+            super().update()
+        #
+>>>>>>> 851c632e518c992105987617cd60320985936f86
         self.points = []
         self.circles = []
         self.updated_vertices = []
