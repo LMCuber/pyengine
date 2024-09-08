@@ -12,7 +12,8 @@ keyboard_map = {"1": "!", "2": "@", "3": "#", "4": "$", "5": "%", "6": "^", "7":
 
 
 class _Widget:
-    def __pre_init__(self, font, text=None):
+    def __pre_init__(self, surf, font, text=None):
+        self.surf = surf
         self.font = font if font is not None else _eng.def_fonts[20]
         if text is not None:
             self.text = format_text(text)
@@ -26,7 +27,6 @@ class _Widget:
             self.tooltip_img.fill((70, 70, 70))
             write(self.tooltip_img, "center", self.tooltip, _eng.def_tooltip_fonts[10], WHITE, *[s / 2 for s in self.tooltip_img.get_size()])
         self.special_flags = special_flags if special_flags is not None else []
-        self.replace_og(image)
         self.surf = surf
         self.friends = []
         self.og_pos = pos
@@ -45,10 +45,6 @@ class _Widget:
         if add:
             _mod.widgets.append(self)
         self.child = child
-        if "rounded" in self.special_flags:
-            img = pil_to_pg(round_corners(pg_to_pil(self.image), 10))
-            self.image = img
-            self.replace_og(img)
         self.visible_when = visible_when
         self.zooming = False
         self.as_child = as_child
@@ -65,6 +61,8 @@ class _Widget:
         w = width if width is not None else self.font.size(text)[0] + 5
         h = height if height is not None else self.font.size(text)[1] + 5
         self.image = pygame.Surface((w, h), pygame.SRCALPHA)
+        self.normal_image = self.image.copy()
+        self.red_image = self.image.copy()
 
     def _exec_command(self, command, after=None, *args, **kwargs):
         if callable(command):
@@ -78,10 +76,6 @@ class _Widget:
         setattr(self.rect, anchor, pos)
         self.og_pos = pos
         self.og_anchor = anchor
-
-    def replace_og(self, image):
-        self.og_img = image.copy()
-        self.og_size = self.og_img.get_size()
 
     def startup_command(self):
         if not self.disabled:
@@ -152,36 +146,41 @@ class ButtonBehavior:
 
 
 class _Overwriteable:
-    def overwrite(self, text):
+    def overwrite(self, text, width, height, text_color, text_orien, bg_color, init=True):
+        # init
+        self.width, self.height = width, height
         w, h = self.width, self.height
+        self.text, self.text_color, self.text_orien, self.bg_color = text, text_color, text_orien, bg_color
         if isinstance(self, Checkbox):
             w += self.box.get_width() + 10
-        self.init_size(w, h, text=True)
+        # image creatine
+        self.init_size(w, h, self.text)
         self.image.fill(self.bg_color)
+        self.red_image.fill(PINK_RED)
         if isinstance(self, Checkbox):
             write(self.image, "topleft", text, self.font, self.text_color, 30, 5)
+            write(self.red_image, "topleft", text, self.font, WHITE,  30, 5)
         else:
             write(self.image, "center", text, self.font, self.text_color, self.image.get_width() / 2, self.image.get_height() / 2)
-        self.image = Texture.from_surface(self.surf, self.image)
-        self.rect = self.image.get_rect(center=self.rect.center)
-
-    def write_text(self, text, font, text_color, text_orien):
-        if text_orien == "center":
-            write(self.image, "center", text, font, text_color, *[s / 2 for s in self.image.get_size()])
-        elif text_orien == "left":
-            write(self.image, "midleft", text, font, text_color, 5, self.image.get_height() / 2)
+            write(self.red_image, "topleft", text, self.font, WHITE,  30, 5)
+        # converting to textures and finalizing
+        if init:
+            self.rect = self.image.get_rect()
+        else:
+            self.image = Texture.from_surface(self.surf, self.image)
+            self.rect = self.image.get_rect(center=self.image.get_rect())
 
 
 class Button(_Widget, _Overwriteable, ButtonBehavior):
     def __init__(self, surf, text, command, pass_self=False, right_command=None, middle_command=None, pass_self_right=False, pass_self_middle=False, width=None, height=None, pos=_DEF_WIDGET_POS, text_color=BLACK, text_orien="center", bg_color=WIDGET_GRAY, anchor="center", exit_command=None, visible_when=None, font=None, tooltip_font=None, friends=None, click_effect=False, disabled=False, disable_type=False, template=None, add=True, special_flags=None, tooltip=None, appends=None, as_child=False, *args, **kwargs):
-        _Widget.__pre_init__(self, font, text)
-        self.text = text
+        _Widget.__pre_init__(self, surf, font, text)
         self.bg_color = bg_color
         self.click_effect = click_effect
-        self.init_size(width, height, text)
-        self.image.fill(bg_color)
-        self.write_text(self.text, self.font, text_color, text_orien)
-        self.rect = self.image.get_rect()
+        self.width = width
+        self.height = height
+        # images
+        self.overwrite(text, width, height, text_color, text_orien, bg_color)
+        # rest
         self.command = command
         self.pass_self = pass_self
         self.right_command = right_command
@@ -209,7 +208,7 @@ class Button(_Widget, _Overwriteable, ButtonBehavior):
 
 class ComboBox(_Widget, _Overwriteable, ButtonBehavior):
     def __init__(self, surf, text, combos, unavailable=None, command=lambda_none, width=None, height=None, pos=_DEF_WIDGET_POS, text_color=BLACK, bg_color=WIDGET_GRAY, bg_colors=None, hover_color=YELLOW, extension_offset=(0, 0), anchor="center", exit_command=None, visible_when=None, font=None, tooltip_font=None, friends=None, click_effect=False, disabled=False, disable_type=False, template=None, add=True, special_flags=None, tooltip=None, appends=None, as_child=False, *args, **kwargs):
-        _Widget.__pre_init__(self, font, text)
+        _Widget.__pre_init__(self, surf, font, text)
         self.text = text
         self.current = text
         self.command = command
@@ -286,7 +285,7 @@ class ComboBox(_Widget, _Overwriteable, ButtonBehavior):
 
 class ToggleButton(_Widget, ButtonBehavior, _Overwriteable):
     def __init__(self, surf, cycles, pos=_DEF_WIDGET_POS, command=None, width=None, height=None, bg_color=WIDGET_GRAY, text_color=BLACK, anchor="center", exit_command=None, visible_when=None, font=None, tooltip_font=None, friends=None, disabled=False, disable_type=False, template=None, add=True, special_flags=None, tooltip=None, appends=None, as_child=False, *args, **kwargs):
-        _Widget.__pre_init__(self, font)
+        _Widget.__pre_init__(self, surf, font)
         self.command = command
         self.text_color = text_color
         self.bg_color = bg_color
@@ -318,20 +317,9 @@ class ToggleButton(_Widget, ButtonBehavior, _Overwriteable):
                     self.command(self.cycles[self.cycle])
 
 
-class Label(_Widget, _Overwriteable):
-    def __init__(self, surf, text, pos=_DEF_WIDGET_POS, width=None, height=None, bg_color=WIDGET_GRAY, text_color=BLACK, text_orien="center", anchor="center", exit_command=None, visible_when=None, font=None, tooltip_font=None, friends=None, disabled=False, disable_type=False, template=None, add=True, special_flags=None, tooltip=None, appends=None, as_child=False, *args, **kwargs):
-        _Widget.__pre_init__(self, font, text)
-        self.bg_color = bg_color
-        self.init_size(width, height, text)
-        self.image.fill(bg_color)
-        self.write_text(self.text, self.font, text_color, text_orien)
-        self.rect = self.image.get_rect()
-        _Widget.__init__(self, self.image, surf, visible_when, friends, pos, anchor, width, height, exit_command, disabled, disable_type, template, type(self), add, special_flags, tooltip, appends, as_child)
-
-
 class Entry(_Widget):
     def __init__(self, surf, title, command, width=None, height=None, max_chars=None, input_required=False, focus=True, keyboard=True, keyboard_map=None, key_font=None, joystick=None, func_args=None, text_color=BLACK, pos=_DEF_WIDGET_POS, start_command=None, anchor="center", default_text=None, exit_command=None, visible_when=None, font=None, tooltip_font=None, friends=None, error_command=None, disabled=False, disable_type=False, template=None, add=True, special_flags=None, tooltip=None, appends=None, as_child=False, *args, **kwargs):
-        _Widget.__pre_init__(self, font)
+        _Widget.__pre_init__(self, surf, font)
         self.text = title
         self.max_chars = max_chars if max_chars is not None else float("inf")
         self.input_required = input_required
@@ -488,7 +476,7 @@ class Entry(_Widget):
 class MessageboxOkCancel(_Widget):
     def __init__(self, surf, text, ok_command, no_ok_command=lambda_none, ok="OK", no_ok="CANCEL", width=None, height=None, pos=_DEF_WIDGET_POS, anchor="center", exit_command=None, visible_when=None, font=None, tooltip_font=None, friends=None, disabled=False, disable_type=False, template=None, add=True, special_flags=None, tooltip=None, appends=None, as_child=False, ok_joystick=None, *args, **kwargs):
         # base
-        _Widget.__pre_init__(self, font, text)
+        _Widget.__pre_init__(self, surf, font, text)
         self.text_width = self.font.size(self.text)[0] + 10
         self.image = pygame.Surface((self.text_width, 60))
         self.image.fill(WIDGET_GRAY)
@@ -529,7 +517,7 @@ class MessageboxOkCancel(_Widget):
 class MessageboxOk(_Widget):
     def __init__(self, surf, text, width, height, ok_command=lambda_none, ok="OK", pos=_DEF_WIDGET_POS, anchor="center", exit_command=None, visible_when=None, font=None, tooltip_font=None, friends=None, disabled=False, disable_type=False, template=None, add=True, special_flags=None, tooltip=None, appends=None, as_child=False, ok_joystick=None, *args, **kwargs):
         # base
-        _Widget.__pre_init__(self, font, text)
+        _Widget.__pre_init__(self, surf, font, text)
         self.text_width = self.font.size(self.text)[0] + 10
         self.image = pygame.Surface((self.text_width, 60))
         self.image.fill(WIDGET_GRAY)
@@ -569,7 +557,7 @@ class MessageboxOk(_Widget):
 
 class MessageboxError(_Widget):
     def __init__(self, surf, text, pos=_DEF_WIDGET_POS, anchor="center", width=None, height=None, exit_command=None, visible_when=None, font=None, tooltip_font=None, friends=None, disabled=False, disable_type=False, template=None, add=True, special_flags=None, tooltip=None, appends=None, as_child=False, ok_joystick=None, *args, **kwargs):
-        _Widget.__pre_init__(self, font, text)
+        _Widget.__pre_init__(self, surf, font, text)
         self.text_width = self.font.size(self.text)[0] + 10
         self.image = pygame.Surface((self.text_width, 60))
         self.image.fill(WIDGET_GRAY)
@@ -605,7 +593,7 @@ class MessageboxError(_Widget):
 
 class Checkbox(_Widget, _Overwriteable):
     def __init__(self, surf, text, while_checked_command=None, check_command=None, uncheck_command=None, while_not_checked_command=None, width=None, height=None, checked=False, pos=_DEF_WIDGET_POS, anchor="center", bg_color=WIDGET_GRAY, text_color=BLACK, exit_command=None, visible_when=None, font=None, tooltip_font=None, friends=None, disabled=False, disable_type=False, template=None, add=True, special_flags=None, tooltip=None, appends=None, as_child=False, *args, **kwargs):
-        _Widget.__pre_init__(self, font)
+        _Widget.__pre_init__(self, surf, font)
         self.text = text
         self.bg_color = bg_color
         self.text_color = text_color
@@ -661,7 +649,7 @@ class Checkbox(_Widget, _Overwriteable):
 
 class Slider(_Widget):
     def __init__(self, surf, text, values, start=None, on_move_command=None, decimals=0, pos=_DEF_WIDGET_POS, anchor="center", bg_color=WIDGET_GRAY, text_color=BLACK, slider_color=GRAY, width=None, height=None, exit_command=None, visible_when=None, font=None, tooltip_font=None, friends=None, disabled=False, disable_type=False, template=None, add=True, special_flags=None, tooltip=None, appends=None, as_child=False, *args, **kwargs):
-        _Widget.__pre_init__(self, font, text)
+        _Widget.__pre_init__(self, surf, font, text)
         self.on_move_command = on_move_command
         fs = self.font.size(text)
         daw_ = 40
@@ -775,7 +763,7 @@ def update_and_poll_widgets():
 
 
 def format_text(text):
-    return text.replace("\t", "    ")
+    return text.replace("\t", " " * 4)
 
 
 def set_default_fonts(font):

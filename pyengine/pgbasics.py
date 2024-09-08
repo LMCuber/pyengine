@@ -47,6 +47,7 @@ WIDGET_GRAY =   (150, 150, 150, 255)
 RED =           (255,   0,   0, 255)
 DARK_RED =      ( 56,   0,   0, 255)
 LIGHT_PINK =    (255, 247, 247, 255)
+PINK_RED =      pygame.Color("#FF474C")
 GREEN =         (  0, 255,   0, 255)
 MOSS_GREEN =    ( 98, 138,  56, 255)
 DARK_GREEN =    (  0,  70,   0, 255)
@@ -854,6 +855,10 @@ class Lerper:
 
     def change_lerp(self, attr, value):
         setattr(self, attr, value)
+
+
+class FillOptions(Enum):
+    DELAUNAY = 0
 
 
 class Crystal(Lerper):
