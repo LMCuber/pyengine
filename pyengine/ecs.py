@@ -5,17 +5,30 @@ from pprint import pprint
 
 
 ####################
+#      CLASSES     #
+####################
+class Bitset(int):
+    def set(self, bit, value):
+        self = Bitset(value | (1 << bit))
+
+
+####################
 #     ENTITIES    #
 ####################
 def create_entity(*components):
     archetype = tuple(type(comp_obj) for comp_obj in components)
+    # create new component id if component is unknown
+    for comp_obj in components:
+        comp_type = type(comp_obj)
+        if comp_type not in _component_manager.component_ids:
+            _component_manager.register_component(comp_type)
     # update the archetype dict of dict of list
     if archetype not in _component_manager.archetype_pool:
         # new archetype key
         _component_manager.archetype_pool[archetype] = {}
         for comp_obj in components:
-            # component
             for comp_type, comp_obj in zip(archetype, components):
+                # append to existing archetype
                 _component_manager.archetype_pool[archetype][comp_type] = comp_obj
     else:
         # existing archetype
@@ -29,7 +42,14 @@ def create_entity(*components):
 class _ComponentManager:
     def __init__(self):
         self.archetype_pool: dict[dict[list]] = {}
+        self.component_ids = {}
+        self.next_component_shift = 0
 
+    def register_component(self, comp_type):
+        bitset = Bitset()
+        bitset.set(self.next_component_shift, 1)
+        _component_manager.component_ids[comp_type] = bitset
+        
 
 _component_manager = _ComponentManager()
 
@@ -41,8 +61,11 @@ def system(*component_types):
     def inner(system_type):
         #
         def get_components(self):
-            pprint(_component_manager.archetype_pool)
-            return list(zip(*[_component_manager.archetype_pool[self.archetype][comp_type] for comp_type in component_types]))
+            print("-"*50)
+            components = [_component_manager.archetype_pool[self.archetype][comp_type] for comp_type in component_types]
+            pprint(components)
+            print("-"*50)
+            return components
 
         system_type.archetype = component_types
         system_type.get_components = get_components
@@ -94,8 +117,8 @@ class Surface:
 
 # entity creation
 create_entity(
-    Position((10, 10)),
     Surface(40, 30, (230, 74, 141)),
+    Position((10, 10)),
 )
 
 
