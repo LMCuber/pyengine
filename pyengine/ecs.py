@@ -8,11 +8,17 @@ from pprint import pprint
 #      BITWISE     #
 ####################
 class _Bitset(int):
+    def __repr__(self):
+        return f"Comp-{_cm.id_to_component(self).__name__} [{int(self)}]"
+
+    def __or__(self, other):
+        return type(self)(super().__or__(other))
+
     def set(self, bit):
         return _Bitset(self | (1 << bit))
 
     def get_parts(self):
-        return [i for i in range(self.bit_length()) if ((1 << i) & self)]
+        return [2 ** i for i in range(self.bit_length()) if ((1 << i) & self)]
 
 
 ####################
@@ -26,7 +32,7 @@ def get_archetype_id(comp_types):
     archetype_id = _Archetype()
     for comp_type in comp_types:
         try:
-            archetype_id |= _component_manager.component_ids[comp_type]
+            archetype_id |= _cm.component_ids[comp_type]
         except KeyError:
             raise ComponentNotRegisteredError(f"Component of type {comp_type} has been tried to get involved in a system without its ID being initialized. Call register_components() on the component first.")
     return archetype_id
@@ -34,26 +40,30 @@ def get_archetype_id(comp_types):
 
 def create_entity(*comp_objects):
     # create new component id if component is unknown
-    comp_types = []
-    comp_type_ids = []
-    for comp_obj in comp_objects:
-        # register component
-        comp_type = type(comp_obj)
-        comp_types.append(comp_type)
-        if comp_type not in _component_manager.component_ids:
-            register_components(comp_type)
-        comp_type_ids.append(_component_manager.component_ids[comp_type])
-    # update the archetype dict of dict of list after potentially registering new component
+    comp_types = [type(comp_obj) for comp_obj in comp_objects]
     archetype_id = get_archetype_id(comp_types)
-    if archetype_id not in _component_manager.archetype_pool:
+    comp_ids = []
+    for comp_type, comp_obj in zip(comp_types, comp_objects):
+        # register component
+        if comp_type not in _cm.component_ids:
+            register_components(comp_type)
+        # add possible new entry to the component -> archetype hashmap
+        comp_id = _cm.component_ids[comp_type]
+        comp_ids.append(comp_id)
+        if comp_id not in _cm.archetypes_of_components:
+            _cm.archetypes_of_components[comp_id] = set()
+        if archetype_id not in _cm.archetypes_of_components[comp_id]:
+            _cm.archetypes_of_components[comp_id].add(archetype_id)
+    # update the archetype dict of dict of list after potentially registering new component
+    if archetype_id not in _cm.archetype_pool:
         # archetype not not exist yet
-        _component_manager.archetype_pool[archetype_id] = {}
+        _cm.archetype_pool[archetype_id] = {}
     # append the components in the archetype key (as values)
-    for comp_type, comp_type_id, comp_obj in zip(comp_types, comp_type_ids, comp_objects):
-        if comp_type_id not in _component_manager.archetype_pool[archetype_id]:
-            _component_manager.archetype_pool[archetype_id][comp_type_id] = [comp_obj]
+    for comp_type, comp_id, comp_obj in zip(comp_types, comp_ids, comp_objects):
+        if comp_id not in _cm.archetype_pool[archetype_id]:
+            _cm.archetype_pool[archetype_id][comp_id] = [comp_obj]
         else:
-            _component_manager.archetype_pool[archetype_id][comp_type_id].append(comp_obj)
+            _cm.archetype_pool[archetype_id][comp_id].append(comp_obj)
 
 
 ####################
@@ -66,13 +76,14 @@ def component(comp):
 
 def register_components(*comp_types):
     for comp_type in comp_types:
-        bitset = _Bitset().set(_component_manager.next_component_shift)
-        _component_manager.component_ids[comp_type] = bitset
-        _component_manager.next_component_shift += 1
+        bitset = _Bitset().set(_cm.next_component_shift)
+        _cm.component_ids[comp_type] = bitset
+        _cm.next_component_shift += 1
 
 
 class _Archetype(_Bitset):
-    pass
+    def __repr__(self):
+        return f"Arch-{int(self )} [{", ".join(str(x) for x in self.get_parts())}]"
 
 
 class _ComponentManager:
@@ -80,12 +91,13 @@ class _ComponentManager:
         self.archetype_pool = {}
         self.component_ids = {}
         self.next_component_shift = 0
+        self.archetypes_of_components = {}
     
     def id_to_component(self, id_):
-        return {v: k for k, v in self.component_ids.items()}[id_]
+        return {v: k for k, v in self.component_ids.items()}[int(id_)]
 
 
-_component_manager = _ComponentManager()
+_cm = _ComponentManager()
 
 
 ####################
@@ -95,7 +107,7 @@ def system(*component_types):
     def inner(system_type):
         #
         def get_components(self):
-            components = list(zip(*[_component_manager.archetype_pool[self.archetype][_component_manager.component_ids[comp_type]] for comp_type in component_types]))
+            components = list(zip(*[_cm.archetype_pool[self.archetype][_cm.component_ids[comp_type]] for comp_type in component_types]))
             return components
 
         system_type.archetype = get_archetype_id(component_types)
@@ -127,18 +139,8 @@ class Position(list):
 
 @component
 @dataclass
-class Image:
-    image: pygame.Surface
-
-
-@component
-@dataclass
-class Key:
-    up: int
-    down: int
-    left: int
-    right: int
-    mult: int
+class Enemy:
+    speed: float
 
 
 @component
@@ -165,25 +167,11 @@ class RenderSystem:
             WIN.blit(surf.surf, (pos.x, pos.y))
 
 
-# @system(Key, Position)
-# class KeySystem:
-#     def process(self):
-#         k = pygame.key.get_pressed()
-#         for key, position in self.get_components():
-#             if k[key.up]:
-#                 position.y -= key.mult
-#             if k[key.down]:
-#                 position.y += key.mult
-#             if k[key.left]:
-#                 position.x -= key.mult
-#             if k[key.right]:
-#                 position.x += key.mult
-
-
-
 render_system = RenderSystem()
 
-pprint(_component_manager.archetype_pool)
+
+pprint(_cm.archetypes_of_components)
+
 
 # main loop
 WIN = pygame.display.set_mode((800, 600))
