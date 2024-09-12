@@ -105,12 +105,15 @@ _cm = _ComponentManager()
 ####################
 def system(*component_types):
     def inner(system_type):
-        #
         def get_components(self):
-            components = list(zip(*[_cm.archetype_pool[self.archetype][_cm.component_ids[comp_type]] for comp_type in component_types]))
-            return components
+            return self.archetypes
 
-        system_type.archetype = get_archetype_id(component_types)
+        print("-"*100)
+        all_sets = []
+        for comp_type in component_types:
+            all_sets.append(_cm.archetypes_of_components[_cm.component_ids[comp_type]])
+        final_archetypes = set.intersection(*all_sets)
+        system_type.archetypes = final_archetypes
         system_type.get_components = get_components
         return system_type
 
@@ -144,6 +147,12 @@ class Enemy:
 
 
 @component
+@dataclass
+class Friendly:
+    speed: float
+
+
+@component
 class Surface:
     def __init__(self, width: int, height: int, color: Tuple[int, int, int, Optional[int]]):
         self.width = width
@@ -156,6 +165,13 @@ class Surface:
 create_entity(
     Surface(40, 30, (230, 74, 141)),
     Position((10, 10)),
+    Enemy(10),
+)
+
+create_entity(
+    Surface(40, 30, (230, 74, 141)),
+    Position((10, 10)),
+    Friendly(20),
 )
 
 
@@ -168,9 +184,6 @@ class RenderSystem:
 
 
 render_system = RenderSystem()
-
-
-pprint(_cm.archetypes_of_components)
 
 
 # main loop
