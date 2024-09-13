@@ -2,6 +2,7 @@ from dataclasses import dataclass
 import pygame
 from typing import Tuple, Optional
 from pprint import pprint
+import cProfile
 
 
 ####################
@@ -214,25 +215,30 @@ class PhysicsSystem:
 
 render_system = RenderSystem()
 physics_system = PhysicsSystem()
-
-
-# main loop
 WIN = pygame.display.set_mode((800, 600))
 clock = pygame.time.Clock()
-while True:
-    clock.tick(120)
 
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            exit()
-        
-        elif event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_ESCAPE:
+
+def main():
+    # main loop
+
+    while True:
+        clock.tick(120)
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
                 exit()
-    
-    WIN.fill((102, 120, 120))
+            
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    exit()
+        
+        WIN.fill((102, 120, 120))
 
-    render_system.process()
-    physics_system.process()
+        render_system.process()
+        physics_system.process()
 
-    pygame.display.flip()
+        pygame.display.flip()
+
+
+cProfile.run("main()", sort="cumtime")
