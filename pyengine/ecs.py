@@ -114,6 +114,9 @@ def system(*component_types):
 
         all_sets = []
         for comp_type in component_types:
+            # print("--"*100)
+            # pprint(_cm.archetypes_of_components)
+            # print("--"*100)
             all_sets.append(_cm.archetypes_of_components[_cm.component_ids[comp_type]])
         final_archetypes = set.intersection(*all_sets)
         system_type.archetypes = final_archetypes
@@ -121,118 +124,3 @@ def system(*component_types):
         return system_type
 
     return inner
-
-
-# component creation
-@component
-class Position(list):
-    @property
-    def x(self):
-        return self[0]
-    
-    @x.setter
-    def x(self, value):
-        self[0] = value
-    
-    @property
-    def y(self):
-        return self[1]
-    
-    @y.setter
-    def y(self, value):
-        self[1] = value
-
-
-@component
-@dataclass
-class Enemy:
-    speed: float
-
-
-@component
-@dataclass
-class Friendly:
-    speed: float
-
-
-@component
-class Surface:
-    def __init__(self, width: int, height: int, color: Tuple[int, int, int, Optional[int]]):
-        self.width = width
-        self.height = height
-        self.surf = pygame.Surface((self.width, self.height))
-        self.surf.fill(color)
-
-
-@component
-@dataclass
-class Moveable:
-    mult: int
-    left: int = pygame.K_a
-    right: int = pygame.K_d
-    up: int = pygame.K_w
-    down: int = pygame.K_s
-
-
-# entity creation
-create_entity(
-    Surface(40, 30, (230, 74, 141)),
-    Position((30, 30)),
-    Enemy(10),
-)
-
-create_entity(
-    Surface(80, 30, (45, 180, 17)),
-    Position((80, 4)),
-    Friendly(20),
-    Moveable(5),
-)
-
-
-# system creation
-@system(Surface, Position)
-class RenderSystem:
-    def process(self):
-        for surf, pos in self.get_components():
-            WIN.blit(surf.surf, pos)
-
-
-@system(Position, Moveable)
-class PhysicsSystem:
-    def process(self):
-        keys = pygame.key.get_pressed()
-        for pos, moveable in self.get_components():
-            if keys[moveable.left]:
-                pos.x -= moveable.mult
-            if keys[moveable.right]:
-                pos.x += moveable.mult
-            if keys[moveable.up]:
-                pos.y -= moveable.mult
-            if keys[moveable.down]:
-                pos.y += moveable.mult
-
-
-render_system = RenderSystem()
-physics_system = PhysicsSystem()
-
-
-# main loop
-WIN = pygame.display.set_mode((800, 600))
-clock = pygame.time.Clock()
-while True:
-    clock.tick(120)
-
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            exit()
-        
-        elif event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_ESCAPE:
-                exit()
-    
-    WIN.fill((102, 120, 120))
-
-    render_system.process()
-    physics_system.process()
-
-    pygame.display.flip()
