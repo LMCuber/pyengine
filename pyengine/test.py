@@ -77,6 +77,9 @@ for i in range(num_entities):
 
 @system(Position, Velocity, Surface)
 class PhysicsSystem:
+    def __init__(self):
+        self.set_cache(True)
+
     def process(self):
         for pos, vel, surf in self.get_components():
             pos[0] += vel[0]

@@ -105,22 +105,30 @@ _cm = _ComponentManager()
 ####################
 def system(*component_types):
     def inner(system_type):
+        def set_cache(self, tof):
+            if tof and not hasattr(self, "cache"):
+                self.component_cache = []
+            self.cache = tof
+
         def get_components(self):
+            if self.cache and self.component_cache:
+                return self.component_cache
             ret = []
             for arch in final_archetypes:
                 for composite_comp_objects in zip(*(_cm.archetype_pool[arch][_cm.component_ids[comp_type]] for comp_type in component_types)):
                     ret.append(composite_comp_objects)
+            if self.cache:
+                self.component_cache = ret
             return ret
 
         all_sets = []
         for comp_type in component_types:
-            # print("--"*100)
-            # pprint(_cm.archetypes_of_components)
-            # print("--"*100)
             all_sets.append(_cm.archetypes_of_components[_cm.component_ids[comp_type]])
         final_archetypes = set.intersection(*all_sets)
-        system_type.archetypes = final_archetypes
+        # instance methods
         system_type.get_components = get_components
+        system_type.set_cache = set_cache
+        # return
         return system_type
 
     return inner

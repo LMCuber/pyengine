@@ -1,10 +1,12 @@
 setup.py
 pyengine/__init__.py
 pyengine/basics.py
+pyengine/ecs.py
 pyengine/imports.py
 pyengine/pgbasics.py
 pyengine/pgwidgets.py
 pyengine/pilbasics.py
+pyengine/test.py
 pyengine.egg-info/PKG-INFO
 pyengine.egg-info/SOURCES.txt
 pyengine.egg-info/dependency_links.txt
