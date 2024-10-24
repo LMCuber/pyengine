@@ -49,30 +49,30 @@ def create_entity(*comp_objects):
         if comp_type not in _cm.component_ids:
             register_components(comp_type)
         # add possible new entry to the component -> archetype hashmap
-        comp_id = _cm.component_ids[comp_type]
-        comp_ids.append(comp_id)
-        if comp_id not in _cm.archetypes_of_components:
-            _cm.archetypes_of_components[comp_id] = set()
-        if archetype_id not in _cm.archetypes_of_components[comp_id]:
-            _cm.archetypes_of_components[comp_id].add(archetype_id)
+        # comp_id = _cm.component_ids[comp_type]
+        # comp_ids.append(comp_id)
+        if comp_type not in _cm.archetypes_of_components:
+            _cm.archetypes_of_components[comp_type] = set()
+        if archetype_id not in _cm.archetypes_of_components[comp_type]:
+            _cm.archetypes_of_components[comp_type].add(archetype_id)
     # update the archetype dict of dict of list after potentially registering new component
     if archetype_id not in _cm.archetype_pool:
         # archetype not not exist yet
         _cm.archetype_pool[archetype_id] = {}
     # append the components in the archetype key (as values)
-    for comp_type, comp_id, comp_obj in zip(comp_types, comp_ids, comp_objects):
-        if comp_id not in _cm.archetype_pool[archetype_id]:
-            _cm.archetype_pool[archetype_id][comp_id] = [comp_obj]
+    for comp_type, comp_obj in zip(comp_types, comp_objects):
+        if comp_type not in _cm.archetype_pool[archetype_id]:
+            _cm.archetype_pool[archetype_id][comp_type] = [comp_obj]
         else:
-            _cm.archetype_pool[archetype_id][comp_id].append(comp_obj)
+            _cm.archetype_pool[archetype_id][comp_type].append(comp_obj)
 
 
 ####################
 #    COMPONENTS    #
 ####################
-def component(comp):
-    register_components(comp)
-    return comp
+def component(comp_type):
+    register_components(comp_type)
+    return comp_type
 
 
 def register_components(*comp_types):
@@ -106,22 +106,24 @@ _cm = _ComponentManager()
 ####################
 def system(*component_types):
     def inner(system_type):
-        def get_components(self):
-            ret = []
-            for arch in final_archetypes:
-                for composite_comp_objects in zip(*(_cm.archetype_pool[arch][_cm.component_ids[comp_type]] for comp_type in component_types)):
-                    ret.append(composite_comp_objects)
-            return ret
+        def get_components(self, cache=True):
+            if self.component_cache is not None and cache:
+                return self.component_cache
+            else:  # for clarity
+                ret = []
+                for arch in final_archetypes:
+                    for index, composite_comp_objects in enumerate(zip(*(_cm.archetype_pool[arch][comp_type] for comp_type in component_types))):
+                        ret.append((composite_comp_objects if len(composite_comp_objects) > 1 else composite_comp_objects[0]))
+                self.component_cache = ret
+                return ret
 
         all_sets = []
         for comp_type in component_types:
-            # print("--"*100)
-            # pprint(_cm.archetypes_of_components)
-            # print("--"*100)
-            all_sets.append(_cm.archetypes_of_components[_cm.component_ids[comp_type]])
+            all_sets.append(_cm.archetypes_of_components[comp_type])
         final_archetypes = set.intersection(*all_sets)
         system_type.archetypes = final_archetypes
         system_type.get_components = get_components
+        system_type.component_cache = None
         return system_type
 
     return inner

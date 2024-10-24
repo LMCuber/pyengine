@@ -3,6 +3,9 @@ import sys
 from random import uniform as randf, randint as rand
 from ecs import *
 import cProfile
+from pygame.time import get_ticks as ticks
+from math import sin
+# import numpy as np
 
 
 pygame.init()
@@ -20,6 +23,7 @@ class Player:
         self.image.fill([rand(0, 255) for _ in range(3)])
         self.pos = [WIDTH / 2, HEIGHT / 2]
         self.vel = [randf(-3, 3), randf(-3, 3)]
+        self.offset = ticks()
     
     def move(self):
         self.pos[0] += self.vel[0]
@@ -46,9 +50,11 @@ class Player:
 
 
 all_players = []
-num_entities = 10000
+num_entities = 20000
 for i in range(num_entities):
     all_players.append(Player())
+# all_players = np.array(all_players)
+
 
 @component
 class Position(list):
@@ -65,6 +71,7 @@ class Surface:
     def __init__(self, size, color):
         self.surf = pygame.Surface(size)
         self.surf.fill(color)
+        self.offset = ticks()
 
 
 for i in range(num_entities):
@@ -76,9 +83,10 @@ for i in range(num_entities):
 
 
 @system(Position, Velocity, Surface)
-class PhysicsSystem:
+class RenderingSystem:
     def process(self):
-        for pos, vel, surf in self.get_components():
+        for (pos, vel, surf) in self.get_components(cache=cache):
+            # self.move(pos, vel)
             pos[0] += vel[0]
             pos[1] += vel[1]
             if pos[0] < 0:
@@ -95,10 +103,12 @@ class PhysicsSystem:
                 pos[1] = HEIGHT
             WIN.blit(surf.surf, pos)
 
-physics_system = PhysicsSystem()
+physics_system = RenderingSystem()
+# render_system = RenderSystem()
 
 
-def main():
+def main(ecs=True):
+    last = ticks()
     running = __name__ == "__main__"
     while running:
         clock.tick(1000)
@@ -108,20 +118,27 @@ def main():
                 running = False
         
         WIN.fill((120, 120, 120))
-
-        # for player in all_players:
-        #     player.update()
         
-        physics_system.process()
-        
+        if ecs:
+            physics_system.process()
+        else:
+            for player in all_players:
+                player.update()
+            
         WIN.blit(black_bar, (0, 0))
         fps = font.render(f"{int(clock.get_fps())}, {num_entities} entities", True, (230, 230, 230))
         WIN.blit(fps, (5, 5))
 
         pygame.display.update()
 
+        if ticks() - last >= 5000:
+            running = False
+
+
     pygame.quit()
     sys.exit()
 
 
-cProfile.run("main()", sort="cumtime")
+ecs = True; cache = True
+nump = True
+cProfile.run(f"main(ecs={ecs})", sort="cumtime", filename=f"test_{'ecs' if ecs else 'oop'}{'_cache' if ecs and cache else ''}{'_numpy' if nump else ''}.out")
