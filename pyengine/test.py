@@ -83,7 +83,10 @@ for i in range(num_entities):
 
 
 @system(Position, Velocity, Surface)
-class RenderingSystem:
+class PhysicsSystem:
+    def __init__(self):
+        self.set_cache(True)
+
     def process(self):
         for (pos, vel, surf) in self.get_components(cache=cache):
             # self.move(pos, vel)

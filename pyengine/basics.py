@@ -1,5 +1,4 @@
 from .imports import *
-from pandas.io.clipboard import clipboard_get as pd_clipboard_get
 import operator as op
 import numpy as np
 import inspect
