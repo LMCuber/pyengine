@@ -53,7 +53,7 @@ class _Widget:
                 append.append(self)
         setattr(self.rect, anchor, pos)
         self.og_rect = self.rect.copy()
-        self.image = Texture.from_surface(self.surf, self.image)
+        # self.image = Texture.from_surface(self.surf, self.image)
         Thread(target=self.zoom, args=["in"]).start()
         self.startup_command()
 
@@ -457,17 +457,17 @@ class Entry(_Widget):
                 (self.surf, (40, 40, 40), rect, 1)
                 if not key.startswith("!"):
                     wr = keyboard_map.get(key, key.upper() if mod == K_SHIFT else key) if mod == K_SHIFT else key
-                    write(self.surf, "center", wr, self.key_font, BLACK, *rect.center, tex=True)
+                    write(self.surf, "center", wr, self.key_font, BLACK, *rect.center, tex=False)
             (self.surf, BLACK, (self.min_x, self.min_y, self.wid_x, self.hei_y), 1)
         w, h = self.image.width, self.image.height
         # self.image.fill(WHITE, (0, h / 2, w, h / 2))
         if self.default_text and self.output == "":
-            write(self.surf, "midleft", self.default_text[0], self.default_text[1], WIDGET_GRAY, self.rect.x + 5, self.rect.y + self.image.height / 4 * 3, tex=True)
+            write(self.surf, "midleft", self.default_text[0], self.default_text[1], WIDGET_GRAY, self.rect.x + 5, self.rect.y + self.image.height / 4 * 3, tex=False)
         elif self.on and self.focused:
-            write(self.surf, "midleft", self.output + "|", self.font, self.text_color, self.rect.x + 5, self.rect.y + self.image.height / 4 * 3, tex=True)
+            write(self.surf, "midleft", self.output + "|", self.font, self.text_color, self.rect.x + 5, self.rect.y + self.image.height / 4 * 3, tex=False)
         else:
             if self.output:
-                write(self.surf, "midleft", self.output, self.font, self.text_color, self.rect.x + 5, self.rect.y + self.image.height / 4 * 3, tex=True)
+                write(self.surf, "midleft", self.output, self.font, self.text_color, self.rect.x + 5, self.rect.y + self.image.height / 4 * 3, tex=False)
         if ticks() - self.last_on >= 500:
             self.on = not self.on
             self.last_on = ticks()
@@ -674,7 +674,7 @@ class Slider(_Widget):
         # slider
         self.slider_img = pygame.Surface((7, self.image.get_height() / 2 - 4))
         self.slider_img.fill(self.slider_color)
-        self.slider_img = Texture.from_surface(surf, self.slider_img)
+        # self.slider_img = Texture.from_surface(surf, self.slider_img)
         self.sliders_ready = False
         self.sliding = False
         # final
@@ -722,7 +722,7 @@ class Slider(_Widget):
                 self.slider_rect.bottom = self.rect.y + self.image.height - self.yo
                 findex = (dx - self.xo) / (self.max_offset - self.xo) * (len(self.values) - 1)
                 self.value = self.values[round(findex)]
-            write(self.surf, "topright", self.value, self.font, self.text_color, self.rect.right - self.xo, self.rect.y + 5, tex=True)
+            write(self.surf, "topright", self.value, self.font, self.text_color, self.rect.right - self.xo, self.rect.y + 5, tex=False)
             self.surf.blit(self.slider_img, self.slider_rect)
         if self.value != prev_value:
             self._exec_command(self.on_move_command, None, self.value)
@@ -846,7 +846,7 @@ def draw_and_update_widgets():
             break
 
 
-def process_widget_events(event, mouse):
+def process_widget_events(event):
     for widget in iter_widgets():
         if hasattr(widget, "process_event") and callable(widget.process_event):
             if not widget.disabled:

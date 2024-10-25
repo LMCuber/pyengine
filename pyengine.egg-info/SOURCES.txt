@@ -4,6 +4,7 @@ pyengine/basics.py
 pyengine/ecs.py
 pyengine/imports.py
 pyengine/pgbasics.py
+pyengine/pgshaders.py
 pyengine/pgwidgets.py
 pyengine/pilbasics.py
 pyengine/test.py

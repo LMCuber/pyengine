@@ -1198,7 +1198,7 @@ class SmartVector:
 
 
 class PhysicsEntity:
-    def __init__(self, win, size, space, x, y, m=5, r=5, d=1, e=1, w=None, h=None, body_type=pymunk.Body.DYNAMIC, shape_type="circle", color=RED, to_tex=True):
+    def __init__(self, win, size, space, x, y, m=5, r=5, d=1, e=1, w=None, h=None, body_type=pymunk.Body.DYNAMIC, shape_type="circle", color=RED, to_tex=False):
         self.win = win
         self.width, self.height = size
         self.space = space
@@ -1243,7 +1243,7 @@ class PhysicsEntity:
 
 
 class PhysicsEntityConnector:
-    def __init__(self, win, size, space, src, dest, anchor_a=(0, 0), anchor_b=(0, 0), to_tex=True):
+    def __init__(self, win, size, space, src, dest, anchor_a=(0, 0), anchor_b=(0, 0), to_tex=False):
         self.win = win
         self.width, self.height = size
         self.space = space
@@ -1497,7 +1497,7 @@ class RadarChart:
             text = self.texts[i]
             tm = 1.2
             tx, ty = self.r * tm * cos(self.angles[i]), self.r * tm * sin(self.angles[i])
-            write(self.win, "center", text, self.font, WHITE, self.x + tx, self.y + ty, tex=True)
+            write(self.win, "center", text, self.font, WHITE, self.x + tx, self.y + ty, tex=False)
         for data in late_lines:
             draw_line(self.win, *data)
 

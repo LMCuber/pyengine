@@ -30,13 +30,19 @@ class ModernglShader:
         self.tex.write(surf.get_view("1"))
         return self.tex
     
-    def send_surf(self, surf):
-        self.tex = self._surf_to_tex(surf)
-        self.tex.use(0)
-        self.program["tex"] = 0
+    def send_surf(self, index, key, surf):
+        tex = self._surf_to_tex(surf)
+        tex.use(index)
+        if key == "tex":
+            self.tex = tex
+        self.program[key] = index
     
     def send(self, key, value):
         self.program[key] = value
+    
+    def render(self, mode=moderngl.TRIANGLE_STRIP):
+        self.render_object.render(mode=mode)
 
     def release(self):
         self.tex.release()
+        

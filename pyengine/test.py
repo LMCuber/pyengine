@@ -50,6 +50,7 @@ num_entities = 10000
 for i in range(num_entities):
     all_players.append(Player())
 
+
 @component
 class Position(list):
     pass
