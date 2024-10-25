@@ -22,12 +22,14 @@ class ModernglShader:
         # moderngl shit
         self.program = self.ctx.program(vertex_shader=self.vert_shader, fragment_shader=self.frag_shader)
         self.render_object = self.ctx.vertex_array(self.program, [(self.quad_buffer, "2f 2f", "vert", "texcoord")])
+        self.textures = {}
     
     def _surf_to_tex(self, surf):
         self.tex = self.ctx.texture(surf.get_size(), 4)
         self.tex.filter = (moderngl.NEAREST, moderngl.NEAREST)
         self.tex.swizzle = "BGRA"
-        self.tex.write(surf.get_view("1"))
+        # self.tex.write(surf.get_view("1"))
+        self.tex.write(surf.get_buffer())
         return self.tex
     
     def send_surf(self, index, key, surf):
@@ -36,6 +38,7 @@ class ModernglShader:
         if key == "tex":
             self.tex = tex
         self.program[key] = index
+        self.textures[key] = tex
     
     def send(self, key, value):
         self.program[key] = value
@@ -43,6 +46,7 @@ class ModernglShader:
     def render(self, mode=moderngl.TRIANGLE_STRIP):
         self.render_object.render(mode=mode)
 
-    def release(self):
-        self.tex.release()
+    def release_all_textures(self):
+        for name, tex in self.textures.items():
+            tex.release()
         
