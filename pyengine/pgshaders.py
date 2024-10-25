@@ -6,7 +6,7 @@ from pathlib import Path
 # moderngl init
 class ModernglShader:
     def __init__(self, vertex_shader, fragment_shader):
-        self.ctx = moderngl.create_context()
+        self.ctx = moderngl.create_context(vsync=False)
         self.quad_buffer = self.ctx.buffer(data=array("f", [
             # pos (x, y), uv (x, y) (mapping the vertices to the texture space, we flip the uv's on the y-axis because pygame uses inverted cartesian coordinates)
             -1.0, 1.0, 0.0, 0.0,  # topleft

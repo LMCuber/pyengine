@@ -890,6 +890,7 @@ class Crystal(Lerper):
         self.textures = textures if textures is not None else []
         self.backface_culling = backface_culling
         self.update_lerp = True
+        self.f = open("output.txt", "w")
         # self.width = max([x[0] for x in self.vertices]) - min([x[0] for x in self.vertices]) * self.m
         # self.height = max([x[1] for x in self.vertices]) - min([x[1] for x in self.vertices]) * self.m
         # self.depth = max([x[2] for x in self.vertices]) - min([x[2] for x in self.vertices]) * self.m
@@ -920,9 +921,13 @@ class Crystal(Lerper):
         xa, ya, za = self.xa, self.ya, self.za
         for index, vertex in enumerate(self.vertices):
             # rotate the matrices
+            print(111, get_rotation_matrix_x(xa), file=self.f)
+            print(222, vertex, file=self.f)
             vertex = vertex.dot(get_rotation_matrix_x(xa))
-            vertex = vertex.dot(get_rotation_matrix_y(ya))
-            vertex = vertex.dot(get_rotation_matrix_z(za))
+            # vertex = vertex.dot(get_rotation_matrix_y(ya))
+            # vertex = vertex.dot(get_rotation_matrix_z(za))
+            print(333, vertex, file=self.f)
+            print("---------------", file=self.f)
             self.updated_vertices.append(vertex)
             # project the matrices
             pos = vertex.dot(orthogonal_projection_matrix)
