@@ -50,10 +50,9 @@ class Player:
 
 
 all_players = []
-num_entities = 20000
+num_entities = 1000
 for i in range(num_entities):
     all_players.append(Player())
-# all_players = np.array(all_players)
 
 
 
@@ -89,8 +88,7 @@ class PhysicsSystem:
         self.set_cache(True)
 
     def process(self):
-        for (pos, vel, surf) in self.get_components(cache=cache):
-            # self.move(pos, vel)
+        for (pos, vel, surf) in self.get_components():
             pos[0] += vel[0]
             pos[1] += vel[1]
             if pos[0] < 0:
@@ -107,8 +105,7 @@ class PhysicsSystem:
                 pos[1] = HEIGHT
             WIN.blit(surf.surf, pos)
 
-physics_system = RenderingSystem()
-# render_system = RenderSystem()
+physics_system = PhysicsSystem()
 
 
 def main(ecs=True):
@@ -144,5 +141,5 @@ def main(ecs=True):
 
 
 ecs = True; cache = True
-nump = True
-cProfile.run(f"main(ecs={ecs})", sort="cumtime", filename=f"test_{'ecs' if ecs else 'oop'}{'_cache' if ecs and cache else ''}{'_numpy' if nump else ''}.out")
+nump = False
+cProfile.run(f"main(ecs={ecs})", sort="cumtime")
