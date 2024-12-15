@@ -39,8 +39,8 @@ def get_archetype_id(comp_types):
     return archetype_id
 
 
-def create_entity(*comp_objects):
-    # create new component id if component is unknown
+def create_entity(*comp_objects, chunk):
+    # init vars
     comp_types = [type(comp_obj) for comp_obj in comp_objects]
     archetype_id = get_archetype_id(comp_types)
     comp_ids = []
@@ -48,21 +48,23 @@ def create_entity(*comp_objects):
         # register component
         if comp_type not in _cm.component_ids:
             register_components(comp_type)
-        # add possible new entry to the component -> archetype hashmap
+        # add possible new entry to the [component -> archetype] hashmap
         if comp_type not in _cm.archetypes_of_components:
             _cm.archetypes_of_components[comp_type] = set()
-        if archetype_id not in _cm.archetypes_of_components[comp_type]:
-            _cm.archetypes_of_components[comp_type].add(archetype_id)
-    # update the archetype dict of dict of list after potentially registering new component
-    if archetype_id not in _cm.archetype_pool:
+        _cm.archetypes_of_components[comp_type].add(archetype_id)
+    # create new ecs for a chunk that doesn't exits yet
+    if chunk not in _cm.archetype_pool:
+        _cm.archetype_pool[chunk] = {}
+    # update the archetype dict of dict of list when registering new component
+    if archetype_id not in _cm.archetype_pool[chunk]:
         # archetype not not exist yet
-        _cm.archetype_pool[archetype_id] = {}
-    # append the components in the archetype key (as values)
+        _cm.archetype_pool[chunk][archetype_id] = {}
+    # append the components in the archetype key
     for comp_type, comp_obj in zip(comp_types, comp_objects):
-        if comp_type not in _cm.archetype_pool[archetype_id]:
-            _cm.archetype_pool[archetype_id][comp_type] = [comp_obj]
+        if comp_type not in _cm.archetype_pool[chunk][archetype_id]:
+            _cm.archetype_pool[chunk][archetype_id][comp_type] = [comp_obj]
         else:
-            _cm.archetype_pool[archetype_id][comp_type].append(comp_obj)
+            _cm.archetype_pool[chunk][archetype_id][comp_type].append(comp_obj)
 
 
 ####################
@@ -82,7 +84,7 @@ def register_components(*comp_types):
 
 class _Archetype(_Bitset):
     def __repr__(self):
-        return f"Archetype-{int(self )} [{", ".join(str(x) for x in self.get_parts())}]"
+        return f"Archetype-{int(self)} [{", ".join(str(x) for x in self.get_parts())}]"
 
 
 class _ComponentManager:
@@ -107,27 +109,44 @@ def system(*component_types):
         def set_cache(self, tof):
             if tof and not hasattr(self, "cache"):
                 self.component_cache = []
+                self.cache_updated = True
             self.cache = tof
 
-        def get_components(self):
-            if self.cache and self.component_cache:
+        def get_components(self, chunks):
+            if self.cache and self.component_cache and self.cache_updated and False:
                 return self.component_cache
             ret = []
-            for arch in final_archetypes:
-                for composite_comp_objects in zip(*(_cm.archetype_pool[arch][comp_type] for comp_type in component_types)):
-                    ret.append(composite_comp_objects)
+            for chunk in chunks:
+                # check if chunk has any entity entries
+                if chunk in _cm.archetype_pool:
+                    # for every archetype (possible grouping of different entities), update them, in case they are in the given chunk
+                    for arch in self.intersection_of_archetypes:
+                        for composite_comp_objects in zip(*(_cm.archetype_pool[chunk][arch][comp_type] for comp_type in component_types if arch in _cm.archetype_pool[chunk])):
+                            ret.append(composite_comp_objects)
             if self.cache:
                 self.component_cache = ret
             return ret
-    
-        # get the intersection of all combinations of archetypes that all the components are in (I swear the code is good but the explanation is bad)
-        all_sets = []
-        for comp_type in component_types:
-            all_sets.append(_cm.archetypes_of_components[comp_type])
-        final_archetypes = set.intersection(*all_sets)
+        
+        def init_intersection(self):
+            # get the intersection of all combinations of archetypes that all the components are in (I swear the code is good but the explanation is bad)
+            all_sets = []
+            for comp_type in component_types:
+                if comp_type in _cm.archetypes_of_components:
+                    all_sets.append(_cm.archetypes_of_components[comp_type])
+            # intersection because which archetype has _all_ of the component types, you know what I mean
+            self.intersection_of_archetypes = set.intersection(*all_sets) if all_sets else set()
+        
+        og_init = system_type.__init__
+
+        def __init__(self, *args, **kwargs):
+            init_intersection(self)
+            og_init(self, *args, **kwargs)
+
         # instance methods
         system_type.get_components = get_components
         system_type.set_cache = set_cache
+        system_type.__init__ = __init__
+        system_type.init_intersection = init_intersection
         # return
         return system_type
 

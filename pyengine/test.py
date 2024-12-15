@@ -135,7 +135,6 @@ def main(ecs=True):
         if ticks() - last >= 5000:
             running = False
 
-
     pygame.quit()
     sys.exit()
 
