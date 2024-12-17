@@ -65,7 +65,7 @@ def create_entity(*comp_objects, chunk):
             _cm.archetype_pool[chunk][archetype_id][comp_type] = [comp_obj]
         else:
             _cm.archetype_pool[chunk][archetype_id][comp_type].append(comp_obj)
-
+    
 
 ####################
 #    COMPONENTS    #
@@ -84,7 +84,7 @@ def register_components(*comp_types):
 
 class _Archetype(_Bitset):
     def __repr__(self):
-        return f"Archetype-{int(self)} [{", ".join(str(x) for x in self.get_parts())}]"
+        return f"Archetype-{int(self)}([{", ".join(str(x) for x in self.get_parts())}] = {bin(self).removeprefix("0b")})"
 
 
 class _ComponentManager:
@@ -104,6 +104,11 @@ _cm = _ComponentManager()
 ####################
 #      SYSTEMS     #
 ####################
+class _ArchetypeManager:
+    def __init__(self):
+        pass
+
+
 def system(*component_types):
     def inner(system_type):
         def set_cache(self, tof):
@@ -113,8 +118,8 @@ def system(*component_types):
             self.cache = tof
 
         def get_components(self, chunks):
-            if self.cache and self.component_cache and self.cache_updated and False:
-                return self.component_cache
+            # if self.cache and self.component_cache and self.cache_updated:
+            #     return self.component_cache
             ret = []
             for chunk in chunks:
                 # check if chunk has any entity entries
@@ -129,8 +134,9 @@ def system(*component_types):
         
         def init_intersection(self):
             # get the intersection of all combinations of archetypes that all the components are in (I swear the code is good but the explanation is bad)
+            self.component_types = component_types
             all_sets = []
-            for comp_type in component_types:
+            for comp_type in self.component_types:
                 if comp_type in _cm.archetypes_of_components:
                     all_sets.append(_cm.archetypes_of_components[comp_type])
             # intersection because which archetype has _all_ of the component types, you know what I mean
