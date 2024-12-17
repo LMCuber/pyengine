@@ -147,7 +147,7 @@ def system(*component_types):
             # since the components are now in (pot.) more archetypes
             # to reinitialize, check each system that has any component and init
             all_sets = []
-            for comp_type in self.component_types:
+            for comp_type in component_types:
                 if comp_type in _cm.archetypes_of_components:
                     all_sets.append(_cm.archetypes_of_components[comp_type])
                 else:
