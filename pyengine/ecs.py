@@ -88,7 +88,7 @@ def register_components(*comp_types):
 
 class _Archetype(_Bitset):
     def __repr__(self):
-        return f"Archetype-{int(self)} [{", ".join(str(x) for x in self.get_parts())}]"
+        return f"Archetype-{int(self)}([{", ".join(str(x) for x in self.get_parts())}] = {bin(self).removeprefix("0b")})"
 
 
 class _ComponentManager:
@@ -126,8 +126,8 @@ def system(*component_types):
             self.cache = tof
 
         def get_components(self, chunks):
-            if self.cache and self.component_cache and self.cache_updated and False:
-                return self.component_cache
+            # if self.cache and self.component_cache and self.cache_updated:
+            #     return self.component_cache
             ret = []
 
             for chunk in chunks:
