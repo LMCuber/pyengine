@@ -108,9 +108,19 @@ _cm = _ComponentManager()
 ####################
 #      SYSTEMS     #
 ####################
+def process_systems():
+    for system in _sm.iter_systems:
+        system.process()
+
+
+def add_system(system):
+    _sm.iter_systems.append(system)
+
+
 class _SystemManager():
     def __init__(self):
         self.systems_of_components = {}
+        self.iter_systems = {}
 
 
 _sm = _SystemManager()
