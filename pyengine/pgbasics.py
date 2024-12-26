@@ -862,8 +862,9 @@ class FillOptions(Enum):
 
 
 class Crystal(Lerper):
-    def __init__(self, renderer, vertices, point_colors, connections, fills, origin, mult, radius, xa=0, ya=0, za=0, xav=0, yav=0, zav=0, rotate=True, fill_as_connections=False, normals=False, normalize=False, textures=None, backface_culling=True, speed=None, **kwargs):
+    def __init__(self, renderer, vertices, point_colors, connections, fills, origin, mult, radius, xa=0, ya=0, za=0, xav=0, yav=0, zav=0, rotate=True, fill_as_connections=False, normals=False, normalize=False, textures=None, backface_culling=True, speed=None, hwaccel=False, **kwargs):
         super().__init__(speed, **kwargs)
+        self.hwaccel = hwaccel
         self.renderer = renderer
         self.normalize = normalize
         if isinstance(vertices, str):
@@ -876,8 +877,8 @@ class Crystal(Lerper):
             self.get_delaunay()
         self.normals = normals
         self.r = radius
-        self.default_circle = Texture.from_surface(self.renderer, circle(5, RED))
-        self.circle_textures = [Texture.from_surface(self.renderer, circle(self.r, color)) for color in self.point_colors]
+        # self.default_circle = Texture.from_surface(self.renderer, circle(5, RED))
+        # self.circle_textures = [Texture.from_surface(self.renderer, circle(self.r, color)) for color in self.point_colors]
         self.connections = connections
         if False:
             self.connections = [[YELLOW] + f[1:] for f in fills]

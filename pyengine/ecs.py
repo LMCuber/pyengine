@@ -143,10 +143,12 @@ def system(*component_types):
             for chunk in chunks:
                 # check if chunk has any entity entries
                 if chunk in _cm.archetype_pool:
-                    # for every archetype (possible grouping of different entities), update them, in case they are in the given chunk
                     for arch in self.intersection_of_archetypes:
-                        for composite_comp_objects in enumerate(zip(*(_cm.archetype_pool[chunk][arch][comp_type] for comp_type in component_types if arch in _cm.archetype_pool[chunk]))):
-                            ret.append(composite_comp_objects)
+                        # extend the list with the components of the archetype
+                        # in the fashion (eid, chunk, (comp1, comp2, comp3, ... compN))
+                        ret.extend([(eid, chunk, comps) for (eid, comps) in enumerate(zip(*(_cm.archetype_pool[chunk][arch][comp_type] for comp_type in component_types if arch in _cm.archetype_pool[chunk])))])
+                        # this can be rewritten later to be more faster
+                        # but for now it's fine
             if self.cache:
                 self.component_cache = ret
             return ret
