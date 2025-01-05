@@ -68,8 +68,9 @@ def create_entity(*comp_objects, chunk):
             _cm.archetype_pool[chunk][archetype_id][comp_type].append(comp_obj)
     # update the archetypes for the intersections
     for comp_type in comp_types:
-        for system in _sm.systems_of_components.get(comp_type, []):
-            system.init_intersection()
+        for (system, index) in _sm.systems_of_components.get(comp_type, []):
+            system.init_intersection(index)
+
 
 ####################
 #    COMPONENTS    #
@@ -127,67 +128,79 @@ _sm = _SystemManager()
 
 
 # system decorator for a class
-def system(*component_types):
-    def inner(system_type):
-        def set_cache(self, tof):
-            if tof and not hasattr(self, "cache"):
-                self.component_cache = []
-                self.cache_updated = True
-            self.cache = tof
+class System:
+    def __init__(self):
+        pass
 
-        def get_components(self, chunks):
-            # if self.cache and self.component_cache and self.cache_updated:
-            #     return self.component_cache
-            ret = []
+    pass
 
-            for chunk in chunks:
-                # check if chunk has any entity entries
-                if chunk in _cm.archetype_pool:
-                    for arch in self.intersection_of_archetypes:
-                        # extend the list with the components of the archetype
-                        # in the fashion (eid, chunk, (comp1, comp2, comp3, ... compN))
-                        ret.extend([(eid, chunk, comps) for (eid, comps) in enumerate(zip(*(_cm.archetype_pool[chunk][arch][comp_type] for comp_type in component_types if arch in _cm.archetype_pool[chunk])))])
-                        # this can be rewritten later to be more faster
-                        # but for now it's fine
-            if self.cache:
-                self.component_cache = ret
-            return ret
+
+def system(system_type):
+    def set_cache(self, tof):
+        if tof and not hasattr(self, "cache"):
+            self.component_cache = []
+            self.cache_updated = True
+        self.cache = tof
+
+    def get_components(self, index, chunks):
+        # initialize returned components
+        ret = []
+        # the component_types that we need
+        component_types = self._archetypes[index]
+        for chunk in chunks:
+            # check if chunk has any entity entries
+            if chunk in _cm.archetype_pool:
+                for arch in self._intersection_of_archetypes[index]:
+                    # extend the list with the components of the archetype
+                    # in the fashion (eid, chunk, (comp1, comp2, comp3, ... compN))
+                    ret.extend([(eid, chunk, comps) for (eid, comps) in enumerate(zip(*(_cm.archetype_pool[chunk][arch][comp_type] for comp_type in component_types if arch in _cm.archetype_pool[chunk])))])
+        if self.cache:
+            self.component_cache = ret
+        return ret
+    
+    def operates(self, *comp_types):
+        # tells me which archetypes the system operates on
+        # gets accessed using an index
+        self._archetypes.append(comp_types)
+        for comp_type in comp_types:
+            # links the component type with the system that it operates on,
+            # as well as the index (because systems may have multiple archetypes)
+            iden = (self, len(self._archetypes) - 1)
+            if comp_type in _sm.systems_of_components:
+                _sm.systems_of_components[comp_type].append(iden)
+            else:
+                _sm.systems_of_components[comp_type] = [iden]
+    
+    def init_intersection(self, index):
+        # get the intersection of all combinations of archetypes that all the components are in.
+        # this also has to be reinitialized when a new entity is created, since
+        # since the components are now in (pot.) more archetypes
+        # [to reinitialize, check each system that has any of the created component types and call init_intersection]
         
-        def init_intersection(self):
-            # get the intersection of all combinations of archetypes that all the components are in.
-            # this has to be reinitialized when a new entity is created, since
-            # since the components are now in (pot.) more archetypes
-            # to reinitialize, check each system that has any component and init
-            all_sets = []
-            for comp_type in component_types:
-                if comp_type in _cm.archetypes_of_components:
-                    all_sets.append(_cm.archetypes_of_components[comp_type])
-                else:
-                    all_sets.append(set())
-            # intersection because which archetype has at least all of the necessary component types, you know what I mean
-            self.intersection_of_archetypes = set.intersection(*all_sets) if all_sets else set()
+        # iterate over the archetypes
+        all_sets = []
+        for comp_type in self._archetypes[index]:
+            if comp_type in _cm.archetypes_of_components:
+                all_sets.append(_cm.archetypes_of_components[comp_type])
+            else:
+                all_sets.append(set())
+        # intersection because which archetype has at least all of the necessary component types, you know what I mean
+        self._intersection_of_archetypes[index] = set.intersection(*all_sets) if all_sets else set()
 
-        def register_system(self):
-            # only happens once because systems don't change
-            for comp_type in component_types:
-                if comp_type in _sm.systems_of_components:
-                    _sm.systems_of_components[comp_type].append(self)
-                else:
-                    _sm.systems_of_components[comp_type] = [self]
+    og_init = system_type.__init__
 
-        og_init = system_type.__init__
+    def __init__(self, *args, **kwargs):
+        # stores the archetypes the systems intends to operate on
+        self._archetypes = []
+        self._intersection_of_archetypes = {}
+        # og_init may have any number of operates() calls
+        og_init(self, *args, **kwargs)
 
-        def __init__(self, *args, **kwargs):
-            init_intersection(self)
-            register_system(self)
-            og_init(self, *args, **kwargs)
-
-        # instance methods
-        system_type.get_components = get_components
-        system_type.set_cache = set_cache
-        system_type.__init__ = __init__
-        system_type.init_intersection = init_intersection
-        # return
-        return system_type
-
-    return inner
+    # instance methods
+    system_type.get_components = get_components
+    system_type.set_cache = set_cache
+    system_type.__init__ = __init__
+    system_type.init_intersection = init_intersection
+    system_type.operates = operates
+    # return
+    return system_type
