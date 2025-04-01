@@ -14,7 +14,6 @@ import json
 import inspect
 import subprocess
 import wave
-import socket
 from line_profiler import LineProfiler
 
 
@@ -24,9 +23,6 @@ char_mods = {"a": "áàâãä",
              "i": "íìîï",
              "o": "óòôõö",
              "u": "úùûü"}
-INF = "\u221e"  # infinity
-DEG = "\u00B0"  # celcius
-BULLET = "⁍"
 phi = (1 + sqrt(5)) / 2
 int_to_word = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"]
 
@@ -672,6 +668,13 @@ def profile(func):
 
 
 # classes
+class Symbols:
+    INF = "\u221e"  # infinity
+    DEG = "\u00B0"  # celcius
+    BULLET = "⁍"  # bullet
+    TM = chr(8482)
+
+
 class DumbNumber(int):
     def __lt__(self, other):
         return True
