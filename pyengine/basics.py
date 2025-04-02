@@ -14,7 +14,6 @@ import json
 import inspect
 import subprocess
 import wave
-import socket
 from line_profiler import LineProfiler
 
 
@@ -24,26 +23,23 @@ char_mods = {"a": "áàâãä",
              "i": "íìîï",
              "o": "óòôõö",
              "u": "úùûü"}
-INF = "\u221e"  # infinity
-DEG = "\u00B0"  # celcius
-BULLET = "⁍"
 phi = (1 + sqrt(5)) / 2
 int_to_word = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"]
 
 # take a moment to appeciate this beuaty
 print = print
-pritn = print   # be cau sè
-prrint = print  # be cau sè
-pirnt = print   # be cau sè
-PRINT = print   # be cau sè
-pint = print    # be cau sè
-ptrint = print  # be cau sè
-priint = print  # be cau sè
-prinit = print  # be cau sè
-prinnt = print  # be cau sè
-priinit = print # be cau sè
-prnit = print   # be cau sè
-print = print   # I'm gonna move to a rural farm to be a blacksmith for the rest of my life if I mispell print in yet anoother different fashon
+pritn = print
+prrint = print
+pirnt = print
+PRINT = print 
+pint = print 
+ptrint = print
+priint = print
+prinit = print
+prinnt = print
+priinit = print
+prnit = print
+print = print   # I'm gonna move to a rural farm to be a blacksmith for the rest of my life if I mispell print in yet anoother different fashon I stg
 print = print
 
 epoch = time.time
@@ -672,6 +668,13 @@ def profile(func):
 
 
 # classes
+class Symbols:
+    INF = "\u221e"  # infinity
+    DEG = "\u00B0"  # celcius
+    BULLET = "⁍"  # bullet
+    TM = chr(8482)
+
+
 class DumbNumber(int):
     def __lt__(self, other):
         return True

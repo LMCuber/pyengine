@@ -108,7 +108,10 @@ class _Widget:
             self.zooming = False
 
     def draw(self):
-        self.surf.blit(self.image, self.rect)
+        if hasattr(self, "final_image"):
+            self.surf.blit(self.final_image, self.rect)
+        else:
+            self.surf.blit(self.image, self.rect)
         if hasattr(self, "icon_img"):
             self.surf.blit(self.icon_img, self.icon_rect)
 
@@ -130,9 +133,11 @@ class _Widget:
 class ButtonBehavior:
     def update(self):
         if self.rect.collidepoint(pygame.mouse.get_pos()):
-            self.image.alpha = 150
+            # self.image.set_alpha(150)
+            self.final_image = self.red_image
         else:
-            self.image.alpha = 255
+            # self.image.set_alpha(255)
+            self.final_image = self.image
 
     def click(self, right=False, middle=False):
         if right:
@@ -162,7 +167,7 @@ class _Overwriteable:
             write(self.red_image, "topleft", text, self.font, WHITE,  30, 5)
         else:
             write(self.image, "center", text, self.font, self.text_color, self.image.get_width() / 2, self.image.get_height() / 2)
-            write(self.red_image, "topleft", text, self.font, WHITE,  30, 5)
+            write(self.red_image, "center", text, self.font, self.text_color, self.image.get_width() / 2, self.image.get_height() / 2)
         # converting to textures and finalizing
         if init:
             self.rect = self.image.get_rect()
@@ -604,7 +609,7 @@ class Checkbox(_Widget, _Overwriteable):
         write(self.image, "topleft", text, self.font, self.text_color, 30, 5)
         self.box = pygame.Surface((h - 5, h - 5))
         self.box.fill(WHITE)
-        self.box = Texture.from_surface(surf, self.box)
+        # self.box = Texture.from_surface(surf, self.box)
         self.rect = self.image.get_rect(center=pos)
         self.rects = {}
         self.while_checked_command = while_checked_command
@@ -612,7 +617,7 @@ class Checkbox(_Widget, _Overwriteable):
         self.check_command = check_command
         self.uncheck_command = uncheck_command
         self.check = get_icon("check", (h - 5, h - 5))
-        self.check = Texture.from_surface(surf, self.check)
+        # self.check = Texture.from_surface(surf, self.check)
         self.checked = False
         if checked:
             self.check_event()
@@ -726,6 +731,10 @@ class Slider(_Widget):
             self.surf.blit(self.slider_img, self.slider_rect)
         if self.value != prev_value:
             self._exec_command(self.on_move_command, None, self.value)
+    
+
+def set_hw_accel(tof):
+    _eng.hw_accel = tof
 
 
 def update_and_poll_widgets():
@@ -860,6 +869,7 @@ class _Engine:
         self.def_tooltip_fonts = None
         self.cursors = []
         self.widget_startup_commands = []
+        self.hw_accel = True
 
 
 class _Module:

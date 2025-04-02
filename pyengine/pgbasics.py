@@ -94,6 +94,10 @@ orthogonal_projection_matrix = array([
 resolutions = [(640 * m, 360 * m) for m in range(1, 6)]
 
 
+def octave_noise():
+    pass
+
+
 def warp(surf: pygame.Surface,
          warp_pts,
          smooth=True,
