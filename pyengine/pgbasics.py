@@ -882,7 +882,7 @@ class Crystal(Lerper):
         self.normals = normals
         self.r = radius
         # self.default_circle = Texture.from_surface(self.renderer, circle(5, RED))
-        # self.circle_textures = [Texture.from_surface(self.renderer, circle(self.r, color)) for color in self.point_colors]
+        self.circle_textures = [Texture.from_surface(self.renderer, circle(self.r, color)) for color in self.point_colors]
         self.connections = connections
         if False:
             self.connections = [[YELLOW] + f[1:] for f in fills]
