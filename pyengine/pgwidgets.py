@@ -604,7 +604,7 @@ class Checkbox(_Widget, _Overwriteable):
         self.text_color = text_color
         w = width - 30 if width is not None else self.font.size(text)[0]
         h = height - 10 if height is not None else self.font.size(text)[1]
-        self.image = pygame.Surface((30 + 5 + w + 5, 5 + h + 5), pygame.SRCALPHA)
+        self.image = pygame.Surface((30 + w, 5 + h + 5), pygame.SRCALPHA)
         self.image.fill(self.bg_color)
         write(self.image, "topleft", text, self.font, self.text_color, 30, 5)
         self.box = pygame.Surface((h - 5, h - 5))

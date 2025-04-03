@@ -13,6 +13,7 @@ from colorsys import rgb_to_hsv, hsv_to_rgb, rgb_to_hls, hls_to_rgb
 from numpy import array
 import cv2
 from scipy.spatial import Delaunay
+from dataclasses import dataclass
 
 
 pygame.init()
@@ -92,6 +93,64 @@ orthogonal_projection_matrix = array([
     [0, 0, 0]
 ])
 resolutions = [(640 * m, 360 * m) for m in range(1, 6)]
+
+
+# RENDERING FUNCTIONS
+def draw_line(ren, color, p1, p2):
+    ren.draw_color = color
+    ren.draw_line(p1, p2)
+
+
+def draw_rect(ren, color, rect):
+    ren.draw_color = color
+    ren.draw_rect(rect)
+
+
+def fill_rect(ren, color, rect):
+    ren.draw_color = color
+    ren.fill_rect(rect)
+
+
+def draw_quad(ren, color, p1, p2, p3, p4):
+    ren.draw_color = color
+    ren.draw_quad(p1, p2, p3, p4)
+
+
+def fill_quad(ren, color, p1, p2, p3, p4):
+    ren.draw_color = color
+    ren.fill_quad(p1, p2, p3, p4)
+
+
+def draw_triangle(ren, color, p1, p2, p3):
+    ren.draw_color = color
+    ren.draw_triangle(p1, p2, p3)
+
+
+def fill_triangle(ren, color, p1, p2, p3):
+    ren.draw_color = color
+    ren.fill_triangle(p1, p2, p3)
+
+
+class Global:
+    def __init__(self):
+        self.hwaccel = True
+
+    def disable_hwaccel(self):
+        global draw_line, draw_rect, draw_quad, fill_quad, draw_triangle, fill_triangle
+        
+        def draw_quad(ren, color, p1, p2, p3, p4): pygame.draw.polygon(ren, color, (p1, p2, p3, p4), 1)
+        def fill_quad(ren, color, p1, p2, p3, p4): pygame.draw.polygon(ren, color, (p1, p2, p3, p4))
+        def draw_triangle(ren, color, p1, p2, p3): pygame.draw.polygon(ren, color, (p1, p2, p3), 1)
+        def fill_triangle(ren, color, p1, p2, p3): pygame.draw.polygon(ren, color, (p1, p2, p3))
+
+        self.hwaccel = False
+
+_glob = Global()
+
+
+def set_pyengine_hwaccel(tof):
+    if not tof:
+        _glob.disable_hwaccel()
 
 
 def octave_noise():
@@ -217,42 +276,7 @@ def aaellipse(width, height, color=BLACK):
     return ret
 
 
-# functions
-def draw_line(ren, color, p1, p2):
-    ren.draw_color = color
-    ren.draw_line(p1, p2)
-
-
-def draw_rect(ren, color, rect):
-    ren.draw_color = color
-    ren.draw_rect(rect)
-
-
-def fill_rect(ren, color, rect):
-    ren.draw_color = color
-    ren.fill_rect(rect)
-
-
-def draw_quad(ren, color, p1, p2, p3, p4):
-    ren.draw_color = color
-    ren.draw_quad(p1, p2, p3, p4)
-
-
-def fill_quad(ren, color, p1, p2, p3, p4):
-    ren.draw_color = color
-    ren.fill_quad(p1, p2, p3, p4)
-
-
-def draw_triangle(ren, color, p1, p2, p3):
-    ren.draw_color = color
-    ren.draw_triangle(p1, p2, p3)
-
-
-def fill_triangle(ren, color, p1, p2, p3):
-    ren.draw_color = color
-    ren.fill_triangle(p1, p2, p3)
-
-
+# RENDERING FUNCTIONS THAT DEPEND ON HWACCEL / NOT HWACCEL
 def rgb_to_grayscale(color):
     """
     r, g, b, a = color
@@ -906,8 +930,6 @@ class Crystal(Lerper):
 
     # crystal draw
     def draw(self):
-        # buffer image
-        pass
         # lerper update
         if self.update_lerp:
             super().update()
@@ -926,13 +948,9 @@ class Crystal(Lerper):
         xa, ya, za = self.xa, self.ya, self.za
         for index, vertex in enumerate(self.vertices):
             # rotate the matrices
-            print(111, get_rotation_matrix_x(xa), file=self.f)
-            print(222, vertex, file=self.f)
             vertex = vertex.dot(get_rotation_matrix_x(xa))
-            # vertex = vertex.dot(get_rotation_matrix_y(ya))
-            # vertex = vertex.dot(get_rotation_matrix_z(za))
-            print(333, vertex, file=self.f)
-            print("---------------", file=self.f)
+            vertex = vertex.dot(get_rotation_matrix_y(ya))
+            vertex = vertex.dot(get_rotation_matrix_z(za))
             self.updated_vertices.append(vertex)
             # project the matrices
             pos = vertex.dot(orthogonal_projection_matrix)
@@ -1049,8 +1067,9 @@ class Crystal(Lerper):
         # filling
         if surf:
             surf, rect = warp(surf, points)
-            tex = Texture.from_surface(self.renderer, surf)
-            self.renderer.blit(tex, rect)
+            if _glob.hwaccel:
+                surf = Texture.from_surface(self.renderer, surf)
+            self.renderer.blit(surf, rect)
         if len(points) == 3:
             if fill_color:
                 fill_triangle(self.renderer, fill_color, *points)
