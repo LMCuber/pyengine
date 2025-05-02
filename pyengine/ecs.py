@@ -127,7 +127,7 @@ class _SystemManager():
 _sm = _SystemManager()
 
 
-# [system decorator for a system class (no inheritance so you can pass parameters instead of calling functions in the __init__, and it is consistent with @component decorator (still jank though)]
+# [system decorator for a system class (no inheritance so you can pass parameters instead of calling functions in the __init__, and it is consistent with @component decorator (still HACK though)]
 def system(cache=False):
     def decorator(system_type):
         def set_cache(self, tof):
@@ -143,7 +143,7 @@ def system(cache=False):
         def delete(self, archetype, index, chunk):
             for comp_type in _cm.archetype_pool[chunk][archetype]:
                 # when two entities are deletet in the same loop, the indices don't match up anymore, so we must shift the last one down by 1 for each deleted entity
-                # HACK: this is jank(?) but I haven't stumbled upon and bugs yet
+                # HACK: this is jank but I haven't stumbled upon a bug yet
                 test_i = index
                 while test_i >= 0:
                     try:
@@ -155,8 +155,17 @@ def system(cache=False):
                         break
         
         def relocate(self, src_chunk, archetype, ent_index, dest_chunk):
-            # save all components of this single entity
-            entity_components = [comps[ent_index] for comps in _cm.archetype_pool[src_chunk][archetype].values()]
+            # backup all components of this single entity
+            # HACK: again same hack as last time
+            test_i = ent_index
+            while test_i >= 0:
+                try:
+                    entity_components = [comps[test_i] for comps in _cm.archetype_pool[src_chunk][archetype].values()]
+                except IndexError:
+                    test_i -= 1
+                    continue
+                else:
+                    break
             # # add the entity to the new destination chunk
             create_entity(
                 *entity_components,
