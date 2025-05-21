@@ -153,10 +153,6 @@ def set_pyengine_hwaccel(tof):
         _glob.disable_hwaccel()
 
 
-def octave_noise():
-    pass
-
-
 def warp(surf: pygame.Surface,
          warp_pts,
          smooth=True,
@@ -290,25 +286,6 @@ def rgb_to_grayscale(color):
     color = color[:3]
     gray = [sum(color) / len(color)] * 3
     return gray
-
-
-def mult_matrix(a, b):
-    a_rows = len(a)
-    a_cols = len(a[0])
-
-    b_rows = len(b)
-    b_cols = len(b[0])
-    # Dot product matrix dimentions = a_rows x b_cols
-    product = [[0 for _ in range(b_cols)] for _ in range(a_rows)]
-
-    if a_cols == b_rows:
-        for i in range(a_rows):
-            for j in range(b_cols):
-                for k in range(b_rows):
-                    product[i][j] += a[i][k] * b[k][j]
-    else:
-        print("INCOMPATIBLE MATRIX SIZES")
-    return product
 
 
 def rot_pivot(image, pos, originPos, angle):
@@ -895,12 +872,12 @@ class Crystal(Lerper):
         self.hwaccel = hwaccel
         self.renderer = renderer
         self.normalize = normalize
-        if isinstance(vertices, str):
-            self.get_vertices_from_obj(vertices)
-        else:
+        if isinstance(vertices, list):
             self.vertices = array(vertices)
             self.point_colors = point_colors
             self.fills = fills
+        else:
+            self.get_vertices_from_obj(vertices)
         if self.fills == FillOptions.DELAUNAY:
             self.get_delaunay()
         self.normals = normals
@@ -967,7 +944,6 @@ class Crystal(Lerper):
                 self.updated_normals.append(vector_normal)
 
         # fills
-
         self.fill_vertices = [[fill[0], [self.updated_vertices[x] for x in fill[1]]] for fill in self.fills]
         self.fill_vertices = sorted(self.fill_vertices, key=lambda x: average_z(x[1]))
         self.fill_data = []
@@ -1045,7 +1021,7 @@ class Crystal(Lerper):
             i = points[i]
             if index:
                 i, j = self.points[i], self.points[j]
-            draw_line(self.renderer, line_color, i, j)
+            pygame.draw.line(self.renderer, line_color, i, j, 1)
 
     def fill_points(self, data, *points):
         # setup
@@ -1108,12 +1084,16 @@ class Crystal(Lerper):
         min_ = max_ = 0
         with open(p) as f:
             for line in f.readlines():
+                if line.startswith("#"):
+                    continue
+
+                line = re.sub(r"\s*#.*$", "", line)
                 split = line.split(" ")
+
                 i = split[0]
                 # vector
                 if i == "v":
                     vertex = [float(x) for x in split[1:] if x]
-                    # length = sqrt(abs(vertex[0] ** 2) + abs(vertex[1] ** 2) + abs(vertex[2] ** 2))
                     for x in vertex:
                         if x > max_:
                             max_ = x
@@ -1126,12 +1106,13 @@ class Crystal(Lerper):
                 elif i == "f":
                     face = []
                     datae = [x for x in split[1:] if x]
+                    face.append([])
                     for data in datae:
                         if "//" in data:
                             vertex, normal = [int(x) - 1 for x in data.split("//")]
                         else:
                             vertex, uv, normal = [int(x) - 1 for x in data.split("/")]
-                        face.append(vertex)
+                        face[-1].append(vertex)
                     face.insert(0, [[rand(0, 255) for _ in range(3)] + [255], False, normal])
                     if len(face) <= 5:
                         self.fills.append(face)
@@ -1143,8 +1124,8 @@ class Crystal(Lerper):
         # self.point_colors = [(255, 0, 0, 255)] * len(self.vertices)
         self.point_colors = []
         if self.normalize:
-            # self.vertices = [[(x - min_) / (max_ - min_) for x in vertex] for vertex in self.vertices]
             self.vertices = [[x / max_ for x in vertex] for vertex in self.vertices]
+        
         self.vertices = array(self.vertices)
 
     def get_delaunay(self):

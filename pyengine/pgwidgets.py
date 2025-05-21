@@ -252,7 +252,6 @@ class ComboBox(_Widget, _Overwriteable, ButtonBehavior):
             self.combo_rects[combo] = combo_rect
             y += combo_rect.height
         self.num_combos = i + 1
-        self.combo_image = Texture.from_surface(surf, self.combo_image)
         self.combo_rect = self.combo_image.get_rect(topleft=self.rect.topleft)
         self.real_combo_rects = None
         self.extended = False
@@ -267,19 +266,21 @@ class ComboBox(_Widget, _Overwriteable, ButtonBehavior):
                 for name, rect in self.real_combo_rects.items():
                     if name not in self.unavailable:
                         if rect.collidepoint(pygame.mouse.get_pos()):
-                            self.overwrite(name)
+                            # self.overwrite(name)
+                            self.overwrite(name, self.image.width, self.image.height, self.text_color, text_orien, bg_color)
                             self.extended = False
                             self.current = name
                             self.command(name)
 
     def update(self):
-        ButtonBehavior.update(self)
+        # ButtonBehavior.update(self)
         if self.extended:
             self.reload_combo_rects()
             self.surf.blit(self.combo_image, self.real_combo_rect)
             for name, rect in self.real_combo_rects.items():
                 if name not in self.unavailable:
                     if rect.collidepoint(pygame.mouse.get_pos()):
+                        continue
                         draw_rect(self.surf, self.hover_color, rect)
 
     def reload_combo_rects(self):

@@ -156,7 +156,7 @@ def system(cache=False):
         
         def relocate(self, src_chunk, archetype, ent_index, dest_chunk):
             # backup all components of this single entity
-            # HACK: again same hack as last time
+            # HACK: again, same hack as last time
             test_i = ent_index
             while test_i >= 0:
                 try:
