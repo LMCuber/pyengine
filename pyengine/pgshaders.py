@@ -14,7 +14,7 @@ class ModernglShader:
             -1.0, -1.0, 0.0, 1,  # bottomleft
             1.0, -1.0, 1, 1,  # bottomright
         ]))
-        # reading the shader  (vertex & fragment)
+        # reading the shader (vertex & fragment)
         with open(vertex_shader, "r") as f:
             self.vert_shader = f.read()
         with open(fragment_shader, "r") as f:

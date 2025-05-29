@@ -896,7 +896,6 @@ class Crystal(Lerper):
         self.textures = textures if textures is not None else []
         self.backface_culling = backface_culling
         self.update_lerp = True
-        self.f = open("output.txt", "w")
         # self.width = max([x[0] for x in self.vertices]) - min([x[0] for x in self.vertices]) * self.m
         # self.height = max([x[1] for x in self.vertices]) - min([x[1] for x in self.vertices]) * self.m
         # self.depth = max([x[2] for x in self.vertices]) - min([x[2] for x in self.vertices]) * self.m

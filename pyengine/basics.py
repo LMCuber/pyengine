@@ -1023,7 +1023,7 @@ class SuppressPrint:
 
 class Shut:
     def __enter__(self):
-        do_nothing()
+        pass
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         return True
