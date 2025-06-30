@@ -136,12 +136,13 @@ class Global:
         self.hwaccel = True
 
     def disable_hwaccel(self):
-        global draw_line, draw_rect, draw_quad, fill_quad, draw_triangle, fill_triangle
+        global draw_line, draw_rect, draw_quad, fill_quad, draw_triangle, fill_triangle, draw_line
         
         def draw_quad(ren, color, p1, p2, p3, p4): pygame.draw.polygon(ren, color, (p1, p2, p3, p4), 1)
         def fill_quad(ren, color, p1, p2, p3, p4): pygame.draw.polygon(ren, color, (p1, p2, p3, p4))
         def draw_triangle(ren, color, p1, p2, p3): pygame.draw.polygon(ren, color, (p1, p2, p3), 1)
         def fill_triangle(ren, color, p1, p2, p3): pygame.draw.polygon(ren, color, (p1, p2, p3))
+        def draw_line(ren, color, p1, p2):         pygame.draw.line(ren, color, p1, p2)
 
         self.hwaccel = False
 
@@ -250,6 +251,51 @@ def shoelace(xs, ys):
     signed_area = 0.5 * (left_shoelace - right_shoelace)
     return signed_area
 
+
+def polygon_orientation(vertices):
+    """
+    Determine polygon orientation using:
+    - Find vertex A with smallest y (and largest x if tie)
+    - Let B = previous vertex, C = next vertex
+    - Compute sign of cross product of vectors AB and AC
+    
+    vertices: list of (x, y) tuples, polygon vertices in order
+    
+    Returns:
+    - 1 if counter-clockwise
+    - -1 if clockwise
+    - 0 if degenerate (colinear)
+    """
+    n = len(vertices)
+    if n < 3:
+        return 0  # Not a polygon
+    
+    # Find index of vertex with smallest y, breaking ties by largest x
+    min_idx = 0
+    for i in range(1, n):
+        if (vertices[i][1] < vertices[min_idx][1]) or \
+           (vertices[i][1] == vertices[min_idx][1] and vertices[i][0] > vertices[min_idx][0]):
+            min_idx = i
+    
+    A = vertices[min_idx]
+    B = vertices[(min_idx - 1) % n]  # Previous vertex (wrap around)
+    C = vertices[(min_idx + 1) % n]  # Next vertex (wrap around)
+    
+    # Vector AB
+    AB = (B[0] - A[0], B[1] - A[1])
+    # Vector AC
+    AC = (C[0] - A[0], C[1] - A[1])
+    
+    # Cross product AB x AC (2D)
+    cross = AB[0] * AC[1] - AB[1] * AC[0]
+    
+    if cross > 0:
+        return -1  # Counter-clockwise (WRONG)
+    elif cross < 0:
+        return 1  # Clockwise (CORRECT)
+    else:
+        return 0  # Colinear / degenerate (WRONG)
+    
 
 # surfaces
 def circle(radius, color=BLACK):
@@ -580,7 +626,6 @@ def point_in_mask(point, mask, rect):
     return False
 
 
-
 def shrink2x(img):
     return pygame.transform.scale(img, [s / 2 for s in img.get_size()])
 
@@ -896,16 +941,21 @@ class Crystal(Lerper):
         self.textures = textures if textures is not None else []
         self.backface_culling = backface_culling
         self.update_lerp = True
+        self.update_steps = 0
         # self.width = max([x[0] for x in self.vertices]) - min([x[0] for x in self.vertices]) * self.m
         # self.height = max([x[1] for x in self.vertices]) - min([x[1] for x in self.vertices]) * self.m
         # self.depth = max([x[2] for x in self.vertices]) - min([x[2] for x in self.vertices]) * self.m
 
     # crystal update
     def update(self):
+        self.calculations()
         self.draw()
 
-    # crystal draw
-    def draw(self):
+    def calculations(self):
+        # if self.update_steps > 0:
+        #     return
+        # self.update_steps += 1
+        
         # lerper update
         if self.update_lerp:
             super().update()
@@ -953,11 +1003,12 @@ class Crystal(Lerper):
             d = [data]
             vertices = capsule[1]
             if self.backface_culling:
-                xs = array([vertex[0] for vertex in vertices] + [vertices[0][0]])
-                ys = array([vertex[1] for vertex in vertices] + [vertices[0][1]])
-                # backface culling
-                signed_area = shoelace(xs, ys)
-                cond = signed_area = signed_area > 0
+                # xs = array([vertex[0] for vertex in vertices] + [vertices[0][0]])
+                # ys = array([vertex[1] for vertex in vertices] + [vertices[0][1]])
+                # # backface culling
+                # signed_area = shoelace(xs, ys)
+                # cond = signed_area = signed_area > 0
+                cond = polygon_orientation(vertices)
             else:
                 cond = True
             if cond:
@@ -986,6 +1037,8 @@ class Crystal(Lerper):
                 d.append([x, y])
             self.texture_data.append(d)
 
+    # crystal draw
+    def draw(self):
         for data in self.fill_data:
             if self.fill_as_connections and False:
                 self.connect_points(*data, index=False)
@@ -1056,6 +1109,7 @@ class Crystal(Lerper):
             if outline_color:
                 draw_quad(self.renderer, outline_color, *points)
         else:
+            return
             raise ValueError(f"Invalid number of vertices: {len(points)}")
 
         # draw the normals (debug)

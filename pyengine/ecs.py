@@ -140,23 +140,26 @@ def system(cache=False):
             for (chunk, arch, index) in self.garbage:
                 del _cm.archetype_pool[chunk][arch][comp_type][index]
         
-        def delete(self, archetype, index, chunk):
-            for comp_type in _cm.archetype_pool[chunk][archetype]:
-                # when two entities are deletet in the same loop, the indices don't match up anymore, so we must shift the last one down by 1 for each deleted entity
-                # HACK: this is jank but I haven't stumbled upon a bug yet
-                test_i = index
-                while test_i >= 0:
-                    try:
-                        del _cm.archetype_pool[chunk][archetype][comp_type][test_i]
-                    except IndexError:
-                        test_i -= 1
-                        continue
-                    else:
-                        break
+        def delete(self, archetype_index, index, chunk):
+            print("INDEX", archetype_index)
+            for arch in self._intersection_per_subsystem[archetype_index]:
+                for comp_type in _cm.archetype_pool[chunk][arch]:
+                    # when two entities are deletet in the same loop, the indices don't match up anymore, so we must shift the last one down by 1 for each deleted entity
+                    # HACK: this is jank but I haven't stumbled upon a bug yet
+                    test_i = index
+                    while test_i >= 0:
+                        try:
+                            del _cm.archetype_pool[chunk][arch][comp_type][test_i]
+                        except IndexError:
+                            test_i -= 1
+                            continue
+                        else:
+                            break
         
         def relocate(self, src_chunk, archetype, ent_index, dest_chunk):
             # backup all components of this single entity
             # HACK: again, same hack as last time
+            print("RELOCATE", archetype)
             test_i = ent_index
             while test_i >= 0:
                 try:
@@ -174,19 +177,26 @@ def system(cache=False):
             # delete the aforementioned entity
             self.delete(archetype, ent_index, src_chunk)
 
-        def get_components(self, subsystem_index, chunks, archetype=False):
+        def get_components(self, subsystem_index, chunks, subsystem=False):
+            # if self.cache:
+            #     return self.component_cache
+
             # initialize returned components
             ret = []
+
             # the component_types that we need
             component_types = self._archetypes[subsystem_index]
             for chunk in chunks:
                 # check if chunk has any entity entries
                 if chunk in _cm.archetype_pool:
-                    for arch in self._intersection_per_archetype[subsystem_index]:
+                    # TODO: safe?
+                    if subsystem_index not in self._intersection_per_subsystem:
+                        continue
+                    for arch in self._intersection_per_subsystem[subsystem_index]:
                         # extend the list with the components of the archetype
                         # in the fashion (eid, chunk, (comp1, comp2, comp3, ... compN))
                         ret.extend([
-                            (eid, chunk, *((arch,) if archetype else ()), comps) for (eid, comps) in enumerate(zip(*(_cm.archetype_pool[chunk][arch][comp_type] for comp_type in component_types if arch in _cm.archetype_pool[chunk])))
+                            (eid, chunk, *((subsystem_index,) if subsystem else ()), comps) for (eid, comps) in enumerate(zip(*(_cm.archetype_pool[chunk][arch][comp_type] for comp_type in component_types if arch in _cm.archetype_pool[chunk])))
                         ])
             if self.cache:
                 self.component_cache = ret
@@ -218,20 +228,21 @@ def system(cache=False):
                     all_sets.append(_cm.archetypes_of_components[comp_type])
                 else:
                     all_sets.append(set())
+
             # intersection because which archetype has at least all of the necessary component types, you know what I mean
-            self._intersection_per_archetype[index] = set.intersection(*all_sets) if all_sets else set()
+            self._intersection_per_subsystem[index] = set.intersection(*all_sets) if all_sets else set()
 
         og_init = system_type.__init__
 
         def __init__(self, *args, **kwargs):
             # stores the archetypes the systems intends to operate on
             self._archetypes = []
-            self._intersection_per_archetype = {}
+            self._intersection_per_subsystem = {}
             self.set_cache(cache)
             # og_init may have any number of operates() calls
             og_init(self, *args, **kwargs)
 
-        # instance methods
+        # instance methods (what you lookin at? this is peak 100 iq)
         system_type.get_components = get_components
         system_type.set_cache = set_cache
         system_type.__init__ = __init__
@@ -240,6 +251,7 @@ def system(cache=False):
         system_type.delete = delete
         system_type.relocate = relocate
         system_type.collect_garbage = collect_garbage
+
         # return
         return system_type
 

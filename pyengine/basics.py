@@ -449,10 +449,6 @@ def safe_file_name(name, os_=None):
     return ret
 
 
-def nordis(mu, sigma, r=None, int_=True, ):
-    return (int if int_ else lambda_ret)(getattr(r if r is not None else random, "gauss")(mu, sigma))
-
-
 def nordis(mu, sigma, int_=True):
     f = (int if int_ else lambda_ret)
     ret = f(random.gauss(mu, sigma))
@@ -1032,7 +1028,7 @@ class Shut:
 class DThread(Thread):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.setDaemon(True)
+        self.daemon = True
 
 
 # constants
