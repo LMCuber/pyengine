@@ -1,10 +1,10 @@
 # PyEngine
 
-A python _package_ I concocted for use in complex 2Dvideo games. It consists of the following _modules_:
+A python _package_ I concocted for use in complex 2D video games. It consists of the following _modules_:
 * `basics`: basic functions that Python doesn't have in its standard library, such as:
     * `get_clipboard` get the current user clipboard
     * `delay`: a non-blocking function that delays the execution of a callback, comparable to JavaScript's `setTimeout`
-    * `rand_alien_name`: generates a very shitty alien name. Use with caution.
+    * `rand_alien_name`: generates a very shitty alien name. Use with caution.\
 Has too much random shit that doesn't need to be there, so it's still under refactorment.
 * `pgbasics`: extra `pygame` functionality for your game, such as:
     * `imgload`: an extended image loading function that can parse spritesheets and scale the images
