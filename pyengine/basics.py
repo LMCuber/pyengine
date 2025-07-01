@@ -1,6 +1,5 @@
 from .imports import *
 import operator as op
-import numpy as np
 import inspect
 import sys
 import os

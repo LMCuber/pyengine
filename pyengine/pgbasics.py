@@ -7,10 +7,8 @@ from pygame._sdl2.video import Window, Renderer, Texture, Image
 from pygame.math import Vector2, Vector3
 import pygame.gfxdraw
 import pygame.midi
-import pymunk
 import typing
 from colorsys import rgb_to_hsv, hsv_to_rgb, rgb_to_hls, hls_to_rgb
-from numpy import array
 import cv2
 from scipy.spatial import Delaunay
 from dataclasses import dataclass
@@ -18,19 +16,6 @@ from dataclasses import dataclass
 
 pygame.init()
 pygame.midi.init()
-
-pgscale = pygame.transform.scale
-ticks = pygame.time.get_ticks
-scale = pygame.transform.scale
-scale2x = pygame.transform.scale2x
-rotate = pygame.transform.rotate
-rotozoom = pygame.transform.rotozoom
-flip = pygame.transform.flip
-set_cursor = pygame.mouse.set_cursor
-
-STATIC = pymunk.Body.STATIC
-DYNAMIC = pymunk.Body.DYNAMIC
-KINEMATIC = pymunk.Body.KINEMATIC
 
 # event costants
 is_left_click = lambda event: event.type == pygame.MOUSEBUTTONDOWN and event.button == 1
@@ -334,16 +319,6 @@ def rgb_to_grayscale(color):
     return gray
 
 
-def rot_pivot(image, pos, originPos, angle):
-    image_rect = image.get_rect(topleft = (pos[0] - originPos[0], pos[1]-originPos[1]))
-    offset_center_to_pivot = pygame.math.Vector2(pos) - image_rect.center
-    rotated_offset = offset_center_to_pivot.rotate(-angle)
-    rotated_image_center = (pos[0] - rotated_offset.x, pos[1] - rotated_offset.y)
-    rotated_image = pygame.transform.rotate(image, angle)
-    rotated_image_rect = rotated_image.get_rect(center = rotated_image_center)
-    return rotated_image, rotated_image_rect
-
-
 def rot_pivot(surface, angle, pivot, offset, rotate=False):
     """Rotate the surface around the pivot point.
 
@@ -364,140 +339,25 @@ def rot_pivot(surface, angle, pivot, offset, rotate=False):
     return rotated_image, rect  # Return the rotated image and shifted rect.
 
 
-def color_diff_euclid(c1, c2):
-    dx = c2[0] - c1[0]
-    dy = c2[1] - c1[1]
-    dz = c2[2] - c1[2]
-    dist = sqrt(dx ** 2 + dy ** 2 + dz ** 2)
-    return dist
+def rot_center(img, angle, pos):
+    rot_img = rotozoom(img, angle, 1)
+    new_rect = rot_img.get_rect(center=pos)
+    return rot_img, new_rect
 
 
-def palettize_image(image, palette):
-    ret = pygame.Surface(image.get_size(), pygame.SRCALPHA)
-    colors = [palette.get_at((x, 0)) for x in range(palette.get_width())]
-    # colors = [(0, 0, 128, 255), (194, 178, 128, 255), (0, 0, 0, 255), (137, 207, 240, 255)]
-    for y in range(image.get_height()):
-        for x in range(image.get_width()):
-            rgba = tuple(image.get_at((x, y)))
-            rgb = rgba[:3]
-            if rgb in [(1, 0, 0), (0, 1, 0), (0, 0, 1)] and rgba[-1] == 0:
-                ret.set_at((x, y), (0, 0, 0, 0))
-                continue
-            if rgba == (0, 0, 0, 0):
-                continue
-            min_ = (float("inf"), None)
-            for color in colors:
-                color = color[:3]
-                diff = color_diff_euclid(rgb, color)
-                if diff < min_[0]:
-                    min_ = (diff, color)
-            ret.set_at((x, y), min_[1])
-    return ret
-
-
-def get_rect_anim(size, border_radius=10, border_width=2, color=BLACK, colorkey_color=RED):
-    w, h = size
-    br = border_radius
-    bw = border_width
-    surf = pygame.Surface(size, pygame.SRCALPHA).convert_alpha()
-    pygame.draw.rect(surf, color, (0, 0, *size), bw, br, br, br, br)
-    surf.fill(colorkey_color, (0, 20, *size))
-    surf.set_colorkey(colorkey_color)
-    return surf
-
-
-def diamond_square(power, mult=1):
-    def _randomness():
-        return randf(-10, 20)
-
-    def _seed():
-        return rand(4, 5)
-
-    size = 2 ** power
-    cs = size
-    # dot = "\u2022"
-    dot = 0
-    world = [[dot] * (size + 1) for _ in range(size + 1)]
-    world[0][0] = _seed()
-    world[0][-1] = _seed()
-    world[-1][0] = _seed()
-    world[-1][-1] = _seed()
-    surf = pygame.Surface((size, size))
-    nth = 0
-    for i in range(int(log2(size))):
-        num_squares = 2 ** nth
-        for y in range(num_squares):
-            for x in range(num_squares):
-                # init
-                x = int(x)
-                cs = int(cs)
-                # square step
-                points = [world[y * cs][x * cs], world[y * cs][x * cs + cs], world[y * cs + cs][x * cs], world[y * cs + cs][x * cs + cs]]
-                avg = sum(points) / len(points) + _randomness()
-                world[x * cs + cs // 2][y * cs + cs // 2] = avg
-                # diamond step
-                points = [world[x * cs + cs // 2][y * cs + cs // 2], world[y * cs][x * cs], world[y * cs][x * cs + cs]]
-                avg = sum(points) / len(points) + _randomness()
-                world[y * cs][x * cs + cs // 2] = avg  # top
-                points = [world[x * cs + cs // 2][y * cs + cs // 2], world[y * cs][x * cs + cs], world[y * cs + cs][x * cs + cs]]
-                avg = sum(points) / len(points) + _randomness()
-                world[y * cs + cs // 2][x * cs + cs] = avg  # right
-                points = [world[x * cs + cs // 2][y * cs + cs // 2], world[y * cs + cs][x * cs + cs], world[y * cs + cs][x * cs]]
-                avg = sum(points) / len(points) + _randomness()
-                world[y * cs + cs][x * cs + cs // 2] = avg  # bottom
-                points = [world[x * cs + cs // 2][y * cs + cs // 2], world[y * cs + cs][x * cs], world[y * cs][x * cs]]
-                avg = sum(points) / len(points) + _randomness()
-                world[y * cs + cs // 2][x * cs] = avg  # left
-        # next iteration setup
-        cs /= 2
-        nth += 1
-    world = [[round(x, 1) if x > 0 else 0 for x in y] for y in world]
-    highest = max([x for y in world for x in y])
-    rects = []
-    for yi, y in enumerate(world):
-        for xi, x in enumerate(y):
-            base = 1
-            color = [base * round(x / highest * 255 / base) + 50 for _ in range(3)]
-            if max(color) > 255:
-                color = [255, 255, 255]
-            elif min(color) < 0:
-                color = [0, 0, 0]
-            surf.set_at((xi * mult, yi * mult), color)
-            # rects.append(((xi * mult, yi * mult, mult, mult), [rand(0, 255)] * 3))
-    return surf
-
-
-def pmotion(sxvel, syvel, dx, sx, sy, gravity):
-    # calculating the quadratic function
-    ytop = -((syvel ** 2) / (2 * -gravity))
-    tair = (syvel / (-gravity)) * 2
-    dist = sxvel * tair
-    xtop = dist / 2
-    top = (xtop, ytop)
-    try:
-        a = -(ytop / xtop ** 2)
-    except ZeroDivisionError:
-        return [], []
-    equ = f"f(x) = {a}(x - {xtop})^2 + {ytop}"
-    f = lambda x: a * (x - xtop) ** 2 + ytop
-    # calculating the derivative of f
-    parab = []
-    step = 3
-    equ = f"f'(x) = {2 * a}x + {(2 * a * -xtop)}"
-    fp = lambda x: (2 * a * x) + (2 * a * -xtop)
-    for x in range(0, int(xtop * 2), step if xtop >= 0 else -step):
-        parab.append((sx + x, sy - int(f(x))))
-    # calculating the tangent line function
-    x1, y1 = dx, int(f(dx))
-    m = fp(dx)
-    ft = lambda x: m * x + m * -x1 + y1
-    tangent = ((sx, sy - ft(0)), (sx + xtop * 2, sy - ft(xtop * 2)))
-    # changing the angle accordingly
-    rc = m
-    ang = degrees(atan2(m, 1))
-    # img = pygame.transform.rotozoom(og_img, ang, 1)
-    # img.set_colorkey(BLACK)
-    return parab, tangent
+def palettize_img(img, palette):
+    ret_img = img.copy()
+    palette_colors = [palette.get_at((x, 0)) for x in range(palette.width)]
+    for y in range(img.height):
+        for x in range(img.width):
+            cur = img.get_at((x, y))
+            closest: list[pygame.Color, int] = []
+            for color in palette_colors:
+                dist = color_diff(cur, color)
+                if not closest or dist < closest[1]:
+                    closest = [color, dist]
+            ret_img.set_at((x, y), closest[0])
+    return ret_img
 
 
 def borderize(img, color, thickness=1):
@@ -524,68 +384,8 @@ def contrast_color(rgb):
     return tuple(255 - c for c in rgb)
 
 
-def depr_contrast_color(rgb):
-    hsv = rgb_to_hsv(*rgb)
-    return hsv_to_rgb((hsv[0] + 0.5) % 1, hsv[1], hsv[2])
-
-
-def rot_center(img, angle, pos):
-    rot_img = rotozoom(img, angle, 1)
-    new_rect = rot_img.get_rect(center=pos)
-    return rot_img, new_rect
-
-
-def crop_transparent(pg_img):
-    pil_img = pg_to_pil(pg_img)
-    pil_img = pil_img.crop(pil_img.getbbox())
-    pg_img = pil_to_pg(pil_img)
-    return pg_img
-
-
-def real_colorkey(img, color):
-    og_surf = img.copy()
-    og_surf.set_colorkey(color)
-    blit_surf = pygame.Surface(og_surf.get_size(), pygame.SRCALPHA)
-    blit_surf.blit(og_surf, (0, 0))
-    return blit_surf
-
-
-def set_volume(amount):
-    if get_volume() != amount:
-        pygame.mixer.music.set_volume(amount)
-
-
-def get_volume():
-    return pygame.mixer.music.get_volume()
-
-
-def two_pos_to_angle(pos, mouse):
-    dy = mouse[1] - pos[1]
-    dx = mouse[0] - pos[0]
-    angle = math.atan2(dy, dx)
-    return angle
-
-
-def angle_to_vel(angle, speed=1):
-    vx = cos(angle) * speed
-    vy = sin(angle) * speed
-    return vx, vy
-
-
-def two_pos_to_vel(pos, mouse, speed=1):
-    return angle_to_vel(two_pos_to_angle(pos, mouse), speed)
-
-
 def rand_rgba():
     return tuple(rand(0, 255) for _ in range(3)) + (255,)
-
-
-def darken(pg_img, factor):
-    ret = pg_to_pil(pg_img)
-    enhancer = PIL.ImageEnhance.Brightness(ret)
-    ret = enhancer.enhance(factor)
-    ret = pil_to_pg(ret)
-    return ret
 
 
 def grayscale(img):
@@ -596,46 +396,8 @@ def grayscale(img):
     return surf
 
 
-def distance(rect1, rect2):
-    try:
-        return hypot(abs(rect1.x - rect2.x), abs(rect1.y - rect2.y))
-    except AttributeError:
-        return hypot(abs(rect1[0] - rect2[0]), abs(rect1[1] - rect2[1]))
-
-
-def centroid(vertices):
-    return [sum([v[i] for v in vertices]) / len(vertices) for i in range(3)]
-
-
-def average_z(vertices):
-    return sum([v[2] for v in vertices]) / len(vertices)
-
-
-def distance_ndim(vertex):
-    return sqrt(sum([(vertex[i]) ** 2 for i in range(len(vertex))]))
-
-
 def center_window():
     os.environ["SDL_VIDEO_CENTERED"] = "1"
-
-
-def point_in_mask(point, mask, rect):
-    if rect.collidepoint(point):
-        pos_in_mask = (point[0] - rect.x, point[1] - rect.y)
-        return mask.get_at(pos_in_mask)
-    return False
-
-
-def shrink2x(img):
-    return pygame.transform.scale(img, [s / 2 for s in img.get_size()])
-
-
-def scale3x(img):
-    return pygame.transform.scale(img, [s * 3 for s in img.get_size()])
-
-
-def shrink3x(img):
-    return pygame.transform.scale(img, [s / 3 for s in img.get_size()])
 
 
 def imgload(*path_, after_func="convert_alpha", colorkey=None, frames=None, whitespace=0, frame_pause=0, end_frame=None, scale=1, rotation=0):
@@ -659,13 +421,6 @@ def imgload(*path_, after_func="convert_alpha", colorkey=None, frames=None, whit
     return ret
 
 
-def off_screen(obj, w, h):
-    if obj.rect.left >= w or obj.rect.right <= 0 or obj.rect.top >= h or obj.rect.bottom <= 0:
-        return True
-    else:
-        return False
-
-
 def lerp(start, end, amount):
     s = pygame.Color(start)
     e = pygame.Color(end)
@@ -681,8 +436,6 @@ def lerp_img(start, end, amount, height):
     for x, color in enumerate(colors):
         pygame.draw.line(surf, color, (x, 0), (x, height), 1)
     return surf
-
-
 
 
 def write(surf, anchor, text, font, color, x, y, alpha=255, blit=True, border=None, special_flags=0, tex=False, ignore=True):
@@ -708,101 +461,8 @@ def write(surf, anchor, text, font, color, x, y, alpha=255, blit=True, border=No
     return text, text_rect
 
 
-def get_icon(type_, size=(34, 34)):
-    w, h = size
-    t = pygame.Surface((w, h), pygame.SRCALPHA)
-    if type_ == "settings":
-        c = w / 2
-        of = w // 5
-        pygame.gfxdraw.filled_circle(t, w // 2, h // 2, w // 4, DARK_GRAY)
-        pygame.gfxdraw.filled_circle(t, w // 2, h // 2, w // 5, LIGHT_GRAY)
-        pygame.gfxdraw.filled_circle(t, w // 2, h // 2, w // 8, DARK_GRAY)
-        pygame.draw.rect(t, DARK_GRAY, (c - of / 2, c - of * 2, of, of))
-        pygame.draw.rect(t, DARK_GRAY, (c - of / 2, c + of, of, of))
-        pygame.draw.rect(t, DARK_GRAY, (c - of * 2, c - of / 2, of, of))
-        pygame.draw.rect(t, DARK_GRAY, (c + of, c - of / 2, of, of))
-    elif type_ == "cursor":
-        pygame.draw.polygon(t, WHITE, ((13, 10), (19, 16), (19, 21)))
-        pygame.draw.polygon(t, RED, ((13, 10), (19, 16), (24, 15)))
-    elif type_ == "arrow":
-        t = pygame.Surface((62, 34), pygame.SRCALPHA)
-        pygame.draw.rect(t, WHITE, (0, 8, 34, 18))
-        pygame.draw.polygon(t, WHITE, ((34, 0), (34, 34), (62, 17)))
-    elif type_ == "option menu":
-        pygame.draw.polygon(t, BLACK, ((0, 0), (8, 0), (4, 8)))
-    elif type_ == "check":
-        pygame.draw.aalines(t, BLACK, False, ((0, h / 5 * 3), (w / 5 * 2, h), (w, 0)))
-    elif type_ == "grass":
-        w, h = 5, 13
-        t = pygame.Surface((w, h), pygame.SRCALPHA)
-        c = rgb_mult((0, 128, 0), randf(0.5, 1.2))
-        h = 12
-        for x in range(w):
-            t.fill(c, (x, 0, 1, nordis(h - rand(1, 7), 2)))
-        t = pygame.transform.flip(t, False, True)
-    return t
-
-
-def fade_out(spr, amount=1, after_func=None):
-    def thread_():
-        for i in reversed(range(255)):
-            spr.image.set_alpha(1)
-        if after_func:
-            after_func()
-    start_thread(thread_)
-
-
-def invert_rgb(rgb):
-    return [255 - rgb for color in rgb]
-
-
 def pg_to_pil(pg_img):
     return PIL.Image.frombytes("RGBA", pg_img.get_size(), pygame.image.tobytes(pg_img, "RGBA"))
-
-
-def pg_rect_to_pil(pg_rect):
-    return (pg_rect[0], pg_rect[1], pg_rect[0] + pg_rect[2], pg_rect[1] + pg_rect[3])
-
-
-def rgb_mult(color, factor):
-    ret_list = [int(c * factor) for c in color[:3]] + ([color[3]] if len(color) == 4 else [])
-    for index, ret in enumerate(ret_list):
-        if ret > 255:
-            ret_list[index] = 255
-        elif ret < 0:
-            ret_list[index] = 0
-    return ret_list
-
-
-def img_mult(img, mult, type_=1):
-    # t = epoch()
-    if type_ == 1:
-        pil_img = pg_to_pil(img)
-        enhancer = PIL.ImageEnhance.Brightness(pil_img)
-        pil_img = enhancer.enhance(0.5)
-        data = pil_img.tostring()
-        size = pil_img.size
-        mode = pil_img.mode
-        return pygame.image.frombytes(data, size, mode).convert_alpha()
-    elif type_ == 2:
-        ret_img = img.copy()
-        for y in range(img.get_height()):
-            for x in range(img.get_width()):
-                rgba = img.get_at((x, y))
-                if ret_img.get_at((x, y)) != (0, 0, 0, 0):
-                    ret_img.set_at((x, y), rgb_mult(rgba[:3], mult))
-        return ret_img
-
-
-def red_filter(img):
-    img = pg_to_pil(img)
-    pixels = img.load()
-    w, h = img.size
-    for y in range(h):
-        for x in range(w):
-            r, g, b, a = img.getpixel((x, y))
-            pixels[x, y] = (r, 0, 0, a)
-    return pil_to_pg(img)
 
 
 def swap_palette(surf, old_color, new_color):
@@ -854,38 +514,6 @@ bar_rgb = (lerp(RED, ORANGE, 34) + lerp(ORANGE, YELLOW, 33) + lerp(YELLOW, LIGHT
 
 
 # classes
-class CursorTrail:
-    def __init__(self, surf, depth):
-        self.surf = surf
-        self.depth = depth
-        self.data = []
-        self.w, self.h = 10, 10
-        for i in range(depth):
-            img = pygame.Surface((self.w, self.h), pygame.SRCALPHA)
-            pygame.gfxdraw.filled_polygon(img, ((self.w / 2, 0), (self.w, self.h / 2), (self.w / 2, self.w), (0, self.h / 2)), WHITE)
-            mult = i / depth
-            # img = pygame.transform.scale_by(img, (mult * self.w, mult * self.h))
-            try:
-                img = Texture.from_surface(self.surf, img)
-            except pygame._sdl2.sdl2.error:
-                pass
-            else:
-                self.data.append([img, 0, 0, img.get_rect()])
-
-    def update(self):
-        self.draw()
-
-    def draw(self):
-        mouse = pygame.mouse.get_pos()
-        for index in range(len(self.data)):
-            img, x, y, rect = self.data[index]
-            self.data[index][1] += (mouse[0] - x) * index / self.depth
-            self.data[index][2] += (mouse[1] - y) * index / self.depth
-            rect.x = self.data[index][1]
-            rect.y = self.data[index][2]
-            self.surf.blit(img, rect)
-
-
 class Lerper:
     def __init__(self, speed, **kwargs):
         self.speed = speed
@@ -1187,79 +815,6 @@ class Crystal(Lerper):
             self.fills.append([[rgb_mult(DARK_GRAY, randf(0.8, 1.2)), WHITE], poly])
 
 
-class CImage(Image):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.get_rect = self.texture.get_rect
-
-    @property
-    def width(self):
-        return self.texture.width
-
-    @property
-    def height(self):
-        return self.texture.height
-
-
-class SmartVector:
-    @property
-    def left(self):
-        return self.x
-
-    @left.setter
-    def left(self, value):
-        self.x = value
-
-    @property
-    def right(self):
-        return self.x + self.width
-
-    @right.setter
-    def right(self, value):
-        self.x = value - self.width
-
-    @property
-    def centerx(self):
-        return self.x + self.width / 2
-
-    @centerx.setter
-    def centerx(self, value):
-        self.x = value - self.width / 2
-
-    @property
-    def centery(self):
-        return self.y + self.height / 2
-
-    @centery.setter
-    def centery(self, value):
-        self.y = value - self.height / 2
-
-    @property
-    def center(self):
-        return (self.centerx, self.centery)
-
-    @center.setter
-    def center(self, value):
-        self.centerx = value[0]
-        self.centery = value[1]
-
-    @property
-    def top(self):
-        return self.y
-
-    @top.setter
-    def top(self, value):
-        self.y = value
-
-    @property
-    def bottom(self):
-        return self.y + self.height
-
-    @bottom.setter
-    def bottom(self, value):
-        self.y = value - self.height
-
-
 class PhysicsEntity:
     def __init__(self, win, size, space, x, y, m=5, r=5, d=1, e=1, w=None, h=None, body_type=pymunk.Body.DYNAMIC, shape_type="circle", color=RED, to_tex=False):
         self.win = win
@@ -1423,44 +978,6 @@ class SmartSurface(pygame.Surface):
 
     def to_pil(self):
         return pg_to_pil(self)
-
-
-class SmartMask:
-    def __init__(self, surf):
-        self.surf = surf
-        self.mask = pygame.mask.from_surface(surf)
-        self.overlap = self.mask.overlap
-
-    def __repr__(self):
-        return repr(self.mask)
-
-    def __deepcopy__(self, memo):
-        return pygame.image.tobytes(self.surf, "RGBA")
-
-    def __reduce__(self):
-        return (str, (pygame.image.tobytes(self.surf, "RGBA",)))
-
-
-class SmartGroup(list):
-    def _function(self, attr):
-        def _func():
-            for spr in self:
-                getattr(spr, attr, lambda_none)()
-        return _func
-
-    def __getattr__(self, attr):
-        try:
-            return vars(self)[attr]
-        except KeyError:
-            return self._function(attr)
-
-
-class BaseSprite:
-    def __init__(self, group):
-        self.group = group
-
-    def kill(self):
-        self.group.sprites().remove(self)
 
 
 class Font:
