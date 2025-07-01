@@ -54,74 +54,12 @@ gas_constant = k_b * n_a
 
 
 # functions
-def make_sure_dir_exists(p):
-    if not os.path.exists(p):
-        os.mkdir(p)
-
-
-def genlog(t, a, k, c, q, b, v):
-    return a + (k - a) / (c + q * e ** (-b * t)) ** (1 / v)
-
-
-def sustainability(km_per_l, rho, molar_mass, ratio):
-    kg = 1 / km_per_l * rho
-    moles = (kg * 1000) / molar_mass
-    moles *= ratio
-    return moles
-
-
-def dot_product_3d(p1, p2):
-    ab = p1[0] * p2[0] + p1[1] * p2[1] + p1[2] * p2[2]
-    mag1 = sqrt(p1[0] ** 2 + p1[1] ** 2 + p1[2] ** 2)
-    mag2 = sqrt(p2[0] ** 2 + p2[1] ** 2 + p2[2] ** 2)
-    theta = acos(ab / (mag1 * mag2)) * (180 / pi)
-    return theta
-
-
-def diff(src, dest):
-    return (dest[0] - src[0], dest[1] - src[1])
-
-
-def semicircle(x):
-    return sqrt(1 - x ** 2)
-
-
-def rand_sine_wave(l):
-    def inner(x):
-        f = "".join([f"{i} * sin(x / {i})" + (" + " if i < l - 1 else "") for i in range(1, l)])
-        ev = f.replace("x", str(x))
-        return eval(ev)
-
-    return inner
-
-
 def delay(func, secs, *args, **kwargs):
     def inner():
         sleep(secs)
         func(*args, **kwargs)
 
     Thread(target=inner).start()
-
-
-def rot_matrix_2d(x, y, p):
-    xp = x * cos(p) - y * sin(p)
-    yp = y * cos(p) + x * sin(p)
-    return xp, yp
-
-
-def trig_wave(a, w, h, t, x=0, y=0):
-    ret = [0, 0]
-    ret[0] = w * cos(a) * cos(t) - h * sin(a) * sin(t) + x
-    ret[1] = w * cos(a) * sin(t) + h * sin(a) * cos(t) + y
-    return ret
-
-
-def lemniscate(x, a=1, p=1):  # x: function x; a: magnitude parameter; p: power
-    return a * x * sqrt(1 - x ** 2) ** p
-
-
-def flatten2dl(l):
-    return sum(l, [])
 
 
 def sign(x):
@@ -167,38 +105,12 @@ def rand_alien_name():
     return ret
 
 
-def sec(x):
-    return 1 / cos(x)
-
-
-def csc(x):
-    return 1 / sin(x)
-
-
-def cot(x):
-    return 1 / tan(x)
-
-
-def variance(l):
-    return sum((x - sum(l) / len(l)) ** 2 for x in l) / len(l)
-
-
-def stdev(l):
-    return sqrt(variance(l))
-
-
 def audio_length(p):
     with wave.open(p, "r") as f:
         frames = f.getnframes()
         rate = f.getframerate()
         duration = frames / rate
         return duration
-
-
-def quadratic(a, b, c):
-    def func(op_):
-        return (op_(-b, sqrt(b ** 2 - 4 * a * c))) / 2 * a
-    return (func(op.add), func(op.sub))
 
 
 def is_normal(s):
@@ -208,46 +120,12 @@ def is_normal(s):
     return True
 
 
-def bubble_sort(arr, func=lambda x, y: x > y, iterations=float("inf")):
-    ret = deepcopy(arr)
-    if isinstance(ret, list):
-        dtype = "list"
-    elif isinstance(ret, str):
-        ret = list(ret)
-        dtype = "str"
-    n = len(arr)
-    itr = 0
-    for i in range(n - 1):
-        for j in range(n - i - 1):
-            if func(ret[j], ret[j + 1]):
-                ret[j], ret[j + 1] = ret[j + 1], ret[j]
-        itr += 1
-        if iter == iterations:
-            break
-    if dtype == "list":
-        return ret
-    elif dtype == "str":
-        return "".join(ret)
-
-
 def shake_str(s):
     return bubble_sort(s, lambda x, y: chance(1 / 4), 1)
 
 
-def chain_dict(l):
-    ret = {}
-    for e in l:
-        for k, v in e.items():
-            ret[k] = v
-    return ret
-
-
 def raise_type(argname, argindex, right, wrong):
     raise TypeError(f"Argument {argindex} ({argname}) must be of type '{right}', not '{wrong}'")
-
-
-def dict_to_str(d):
-    return str(d).removeprefix("{").removesuffix("}").replace("'", "").replace('"', '')
 
 
 def osascript(script):
@@ -283,27 +161,6 @@ def choose_folder(title):
         return pth
 
 
-def pascal(rows):
-    if rows == 1:
-        return [[1]]
-    triangle = [[1], [1, 1]]
-    row = [1, 1]
-    for i in range(2, rows):
-        row = [1] + [sum(column) for column in zip(row[1:], row)] + [1]
-        triangle.append(row)
-    return triangle
-
-
-def pyramid(height, item=0):
-    ret = []
-    for _ in range(height):
-        try:
-            ret.append([item] * (len(ret[-1]) + 1))
-        except IndexError:
-            ret.append([item])
-    return ret
-
-
 def do_nothing():
     pass
 
@@ -313,29 +170,6 @@ def open_text(filepath):
         os.system(f"notepad {filepath}")
     elif Platform.os == "darwin":
         os.system(f"open {filepath}")
-
-
-def ndget(nd, keys):
-    for e in keys:
-        nd = nd[e]
-    return nd
-
-
-def empty_function():
-    return lambda *_, **__: None
-
-
-def sassert(cond):
-    if not cond:
-        raise ArbitraryException
-
-
-def create_exception(name, *parents):
-    return type(name, tuple([*parents]), {})
-
-
-def pin():
-    return [choice(range(9)) for _ in range(4)]
 
 
 def token(length=20, valid_chars="default"):
@@ -359,20 +193,12 @@ def correct(word, words):
     return max_
 
 
-def rget(url):
-    return requests.get(url).text
-
-
 def test(text="", mu=500, sigma=10):
     pritn(f"{text} {nordis(mu, sigma)}")
 
 
 def req2dict(url):
     return json.loads(requests.get(url).text)
-
-
-def rel_heat(t, w):
-    return round(1.41 - 1.162 * w + 0.98 * t + 0.0124 * w ** 2 + 0.0185 * w * t)
 
 
 def cform(str_):
@@ -392,13 +218,6 @@ def get_clipboard():
         return tkinter.Tk().clipboard_get()
     elif Platform.os == "darwin":
         return pd_clipboard_get()
-
-
-def factorial(num):
-    ret = 1
-    for i in range(1, num + 1):
-        ret *= i
-    return ret
 
 
 def find(iter, cond, default=None):
@@ -489,27 +308,6 @@ def cdil(list_):
     return [{k: v for k, v in elm.items()} for elm in list_]
 
 
-def solveq(eq, char="x"):
-    default = [side.strip() for side in eq.split("=")]
-    sides = default[:]
-    num = 0
-    while True:
-        sides = default[:]
-        sides = [side.replace(char, "*" + str(num)) for side in sides]
-        if eval(sides[0]) == eval(sides[1]):
-            break
-        else:
-            num += 1
-    return num
-
-
-def dis(p1: tuple, p2: tuple) -> int:
-    a = p1[0] - p2[0]
-    b = p1[1] - p2[1]
-    dis = math.sqrt(a ** 2 + b ** 2)
-    return dis
-
-
 def valtok(dict_, value):
     keys = list(dict_.keys())
     values = list(dict_.values())
@@ -524,38 +322,9 @@ def clamp(value, min_, max_):
     return min(max(value, min_), max_)
 
 
-def name(obj):
-    """ Returns the name of an object, i.e. 1 is 'int' and 'foo' is 'str' """
-    return type(obj).__name__
-
-
 def millis(seconds):
     """ Converts seconds to milliseconds, really nothing interesting here """
     return seconds * 1000
-
-
-def toperc(part, whole, max_=100):
-    """ from two numbers (fraction) to percentage (part=3; whole=6 -> 50(%) """
-    return part / whole * max_
-
-
-def fromperc(perc, whole, max_=100):
-    """ from percentage to number (perc=50; whole=120 -> 100) """
-    return perc * whole / max_
-
-
-def clocktime(int_):
-    """ Returns a string that represents the clock time version of an integer () (2 -> 02) """
-    return "0" + str(int_) if len(str(int)) == 1 else str(int_)
-
-
-def relval(a, b, val):
-    """ Returns the appropiate value based on the weight of the first value, i.e. with a=80, b=120 and val=50, it will return 75 """
-
-
-def lget(l, i, d=None):
-    """ Like a dict's get() method, but with indexes (l = list, i = index, d = default) """
-    l[i] if i < len(l) else d if d is not None else None
 
 
 def roundn(num, base=1):
@@ -576,16 +345,6 @@ def chance(chance_):
 def isprivate(str_):
     """ Returns whether a string is a dunder/private attribute (starts and ends with a (sing)(doub)le underscore (dunderscore) (you~re acoustic)) """
     return str_.lstrip("_") != str_ or str_.rstrip("_") != str_
-
-
-def hmtime():
-    """ Returns the current time in this format: f"{hours}:{minutes}" """
-    return time.strfime("%I:%M")
-
-
-def revnum(num):
-    """ Returns the reverse of a number, i.e. 1 == -1 and -1 == 1 (0 != -0; 0 == 0) """
-    return -num if num > 0 else abs(num)
 
 
 # decorator functions
@@ -669,14 +428,6 @@ class Symbols:
     DEG = "\u00B0"  # celcius
     BULLET = "⁍"  # bullet
     TM = chr(8482)
-
-
-class DumbNumber(int):
-    def __lt__(self, other):
-        return True
-
-    def __gt__(self, other):
-        return True
 
 
 class DictWithoutException(dict):
@@ -781,56 +532,6 @@ class Infinity:
         return type(self)("-")
 
 
-class _Translator:
-    def __init__(self, service, lang):
-        self.service = service
-        self.lang = lang
-        self.saved = {}
-        self.init(self.lang)
-
-    def init(self, lang):
-        self.lang = lang
-        if not self.saved.get(self.lang, False):
-            self.saved[self.lang] = {}
-
-    def add(self, lang, dict_):
-        self.saved = {}
-        self.saved[lang] = dict_
-
-
-class Noise:
-    def __init__(self, r=None):
-        self.r = r if r is not None else Random(3.1415)
-
-    def linear(self, average, length, flatness=0, start=None):
-        noise = []
-        avg = average
-        if start is None:
-            noise.append(nordis(avg, 2, self.r))
-        else:
-            noise.append(start)
-        for _ in range(length - 1):
-            # bounds
-            if noise[-1] == avg - 2:
-                noise.append(self.r.choice([noise[-1], noise[-1] + 1] + [noise[-1] for _ in range(flatness)]))
-            elif noise[-1] == avg + 2:
-                noise.append(self.r.choice([noise[-1] - 1, noise[-1]] + [noise[-1] for _ in range(flatness)]))
-            # normal
-            else:
-                n = [-1, 0, 1] + [0 for _ in range(flatness)]
-                noise.append(noise[-1] + self.r.choice(n))
-        return noise
-
-    def collatz(self, start_num):
-        noise = [start_num]
-        while noise[-1] != 1:
-            if noise[-1] % 2 == 0:
-                noise.append(noise[-1] // 2)
-            else:
-                noise.append(noise[-1] * 3 + 1)
-        return noise
-
-
 class SmartList(list):
     def matrix(self, dims=None):
         return np.array(self).reshape(*(dims if dims is not None else [int(sqrt(len(self)))] * 2)).tolist()
@@ -911,84 +612,6 @@ class SmartList(list):
             freqs[elem] += 1
         max_ = max(freqs.values())
         return valtok(freqs, max_)
-
-
-class SmartOrderedDict:
-    def __init__(self, dict_=None, **kwargs):
-        dict_ = dict_ if dict_ is not None else {}
-        self._keys = []
-        self._values = []
-        for k, v in dict_.items():
-            self._keys.append(k)
-            self._values.append(v)
-        for k, v in kwargs.items():
-            self._keys.append(k)
-            self._values.append(v)
-
-    def __getitem__(self, key):
-        if isinstance(key, str):
-            return self._values[self._keys.index(key)]
-        elif isinstance(key, int):
-            return self._values[key]
-
-    def __setitem__(self, key, value):
-        if key in self._keys:
-            #raise RuntimeError(f"Object of class {type(self)} cannot modify the nonexistent key '{key}'. To create new keys use the 'insert' method instead.")
-            self._values[self._keys.index(key)] = value
-        else:
-            self.insert(0, key, value)
-
-    def __repr__(self):
-        return str({k: v for k, v in zip(self._keys, self._values)})
-
-    def __iter__(self):
-        return self.keys()
-
-    def __bool__(self):
-        return bool(self._keys)
-
-    def __len__(self):
-        return len(self._keys)
-
-    def delval(self, val):
-        del self._values[self._keys.index(value)]
-        self._keys.remove(value)
-
-    def delindex(self, index):
-        del self._keys[index]
-        del self._values[index]
-
-    def getindex(self, index, key=True):
-        return (self._keys if key else self._values)[index]
-
-    def fromvalue(self, value):
-        return self._keys[self._values.index(value)]
-
-    def insert(self, index, key, value):
-        self._keys.insert(index, key)
-        self._values.insert(index, value)
-
-    def keys(self):
-        return iter(self._keys)
-
-    def values(self):
-        return iter(self._values)
-
-    def items(self):
-        return {k: v for k, v in zip(self._keys, self._values)}.items()
-
-
-class JavaScriptObject(dict):
-    def __getattr__(self, value):
-        return self[value]
-
-
-class PseudoRandomNumberGenerator:
-    def _last(self, num):
-        return int(str(num)[-1])
-
-    def random(self):
-        return int(self._last(time.time()) + self._last(cpu_percent()) / 2) / 10
 
 
 # context managers
