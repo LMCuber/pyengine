@@ -140,26 +140,23 @@ def system(cache=False):
             for (chunk, arch, index) in self.garbage:
                 del _cm.archetype_pool[chunk][arch][comp_type][index]
         
-        def delete(self, archetype_index, index, chunk):
-            print("INDEX", archetype_index)
-            for arch in self._intersection_per_subsystem[archetype_index]:
-                for comp_type in _cm.archetype_pool[chunk][arch]:
-                    # when two entities are deletet in the same loop, the indices don't match up anymore, so we must shift the last one down by 1 for each deleted entity
-                    # HACK: this is jank but I haven't stumbled upon a bug yet
-                    test_i = index
-                    while test_i >= 0:
-                        try:
-                            del _cm.archetype_pool[chunk][arch][comp_type][test_i]
-                        except IndexError:
-                            test_i -= 1
-                            continue
-                        else:
-                            break
+        def delete(self, archetype, index, chunk):
+            for comp_type in _cm.archetype_pool[chunk][archetype]:
+                # when two entities are deletet in the same loop, the indices don't match up anymore, so we must shift the last one down by 1 for each deleted entity
+                # HACK: this is jank but I haven't stumbled upon a bug yet
+                test_i = index
+                while test_i >= 0:
+                    try:
+                        del _cm.archetype_pool[chunk][archetype][comp_type][test_i]
+                    except IndexError:
+                        test_i -= 1
+                        continue
+                    else:
+                        break
         
         def relocate(self, src_chunk, archetype, ent_index, dest_chunk):
             # backup all components of this single entity
             # HACK: again, same hack as last time
-            print("RELOCATE", archetype)
             test_i = ent_index
             while test_i >= 0:
                 try:
@@ -169,15 +166,17 @@ def system(cache=False):
                     continue
                 else:
                     break
+
+            # delete the entity
+            self.delete(archetype, ent_index, src_chunk)
+
             # # add the entity to the new destination chunk
             create_entity(
                 *entity_components,
                 chunk=dest_chunk
             )
-            # delete the aforementioned entity
-            self.delete(archetype, ent_index, src_chunk)
 
-        def get_components(self, subsystem_index, chunks, subsystem=False):
+        def get_components(self, subsystem_index, chunks, archetype=False):
             # if self.cache:
             #     return self.component_cache
 
@@ -196,7 +195,7 @@ def system(cache=False):
                         # extend the list with the components of the archetype
                         # in the fashion (eid, chunk, (comp1, comp2, comp3, ... compN))
                         ret.extend([
-                            (eid, chunk, *((subsystem_index,) if subsystem else ()), comps) for (eid, comps) in enumerate(zip(*(_cm.archetype_pool[chunk][arch][comp_type] for comp_type in component_types if arch in _cm.archetype_pool[chunk])))
+                            (eid, chunk, *((arch,) if archetype else ()), comps) for (eid, comps) in enumerate(zip(*(_cm.archetype_pool[chunk][arch][comp_type] for comp_type in component_types if arch in _cm.archetype_pool[chunk])))
                         ])
             if self.cache:
                 self.component_cache = ret
