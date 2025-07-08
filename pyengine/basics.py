@@ -653,7 +653,6 @@ class DThread(Thread):
         self.daemon = True
 
 
-# constants
+# exceptions
 InvalidFilenameError = FileNotFoundError
-BreakAllLoops = create_exception("BreakAllLoops", Exception)
-ArbitraryException = create_exception("ArbitraryException", Exception)
+class BreakAllLoops(Exception): pass

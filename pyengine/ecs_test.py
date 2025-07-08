@@ -83,7 +83,9 @@ class PhysicsSystem:
         self.components = self.get_components(0, chunks=(None,))
 
     def process(self):
-        for _, _, (pos, vel, surf) in self.get_components(0, chunks=(None,)):
+        comps = self.get_components(0, chunks=(None,))
+        blits = []
+        for _, _, (pos, vel, surf) in comps:
             pos[0] += vel[0]
             pos[1] += vel[1]
             if pos[0] < 0:
@@ -98,7 +100,9 @@ class PhysicsSystem:
             elif pos[1] > HEIGHT:
                 vel[1] *= -1
                 pos[1] = HEIGHT
-            WIN.blit(surf.surf, pos)
+            blits.append((surf.surf, pos))
+
+        WIN.blits(blits)
 
 
 physics_system = PhysicsSystem()

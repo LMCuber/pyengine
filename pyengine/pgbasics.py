@@ -2,9 +2,12 @@ from .imports import *
 from .basics import *
 from .pilbasics import pil_to_pg
 import pygame
+from pygame.time import get_ticks as ticks
+import pymunk
 from pygame.locals import *
 from pygame._sdl2.video import Window, Renderer, Texture, Image
 from pygame.math import Vector2, Vector3
+from numpy import array
 import pygame.gfxdraw
 import pygame.midi
 import typing
@@ -303,7 +306,10 @@ def aaellipse(width, height, color=BLACK):
     return ret
 
 
-# RENDERING FUNCTIONS THAT DEPEND ON HWACCEL / NOT HWACCEL
+def rgb_mult(color, factor):
+    return tuple(max(0, min(255, int(c * factor))) for c in color)
+
+
 def rgb_to_grayscale(color):
     """
     r, g, b, a = color
@@ -421,23 +427,6 @@ def imgload(*path_, after_func="convert_alpha", colorkey=None, frames=None, whit
     return ret
 
 
-def lerp(start, end, amount):
-    s = pygame.Color(start)
-    e = pygame.Color(end)
-    li = []
-    for i in range(amount):
-        li.append(s.lerp(e, fromperc(i, 1, amount)))
-    return li
-
-
-def lerp_img(start, end, amount, height):
-    colors = lerp(start, end, amount)
-    surf = pygame.Surface((len(colors), height))
-    for x, color in enumerate(colors):
-        pygame.draw.line(surf, color, (x, 0), (x, height), 1)
-    return surf
-
-
 def write(surf, anchor, text, font, color, x, y, alpha=255, blit=True, border=None, special_flags=0, tex=False, ignore=True):
     if ignore:
         # return
@@ -465,6 +454,41 @@ def pg_to_pil(pg_img):
     return PIL.Image.frombytes("RGBA", pg_img.get_size(), pygame.image.tobytes(pg_img, "RGBA"))
 
 
+def get_icon(type_, size=(34, 34)):
+    w, h = size
+    t = pygame.Surface((w, h), pygame.SRCALPHA)
+    if type_ == "settings":
+        c = w / 2
+        of = w // 5
+        pygame.gfxdraw.filled_circle(t, w // 2, h // 2, w // 4, DARK_GRAY)
+        pygame.gfxdraw.filled_circle(t, w // 2, h // 2, w // 5, LIGHT_GRAY)
+        pygame.gfxdraw.filled_circle(t, w // 2, h // 2, w // 8, DARK_GRAY)
+        pygame.draw.rect(t, DARK_GRAY, (c - of / 2, c - of * 2, of, of))
+        pygame.draw.rect(t, DARK_GRAY, (c - of / 2, c + of, of, of))
+        pygame.draw.rect(t, DARK_GRAY, (c - of * 2, c - of / 2, of, of))
+        pygame.draw.rect(t, DARK_GRAY, (c + of, c - of / 2, of, of))
+    elif type_ == "cursor":
+        pygame.draw.polygon(t, WHITE, ((13, 10), (19, 16), (19, 21)))
+        pygame.draw.polygon(t, RED, ((13, 10), (19, 16), (24, 15)))
+    elif type_ == "arrow":
+        t = pygame.Surface((62, 34), pygame.SRCALPHA)
+        pygame.draw.rect(t, WHITE, (0, 8, 34, 18))
+        pygame.draw.polygon(t, WHITE, ((34, 0), (34, 34), (62, 17)))
+    elif type_ == "option menu":
+        pygame.draw.polygon(t, BLACK, ((0, 0), (8, 0), (4, 8)))
+    elif type_ == "check":
+        pygame.draw.aalines(t, BLACK, False, ((0, h / 5 * 3), (w / 5 * 2, h), (w, 0)))
+    elif type_ == "grass":
+        w, h = 5, 13
+        t = pygame.Surface((w, h), pygame.SRCALPHA)
+        c = rgb_mult((0, 128, 0), randf(0.5, 1.2))
+        h = 12
+        for x in range(w):
+            t.fill(c, (x, 0, 1, nordis(h - rand(1, 7), 2)))
+        t = pygame.transform.flip(t, False, True)
+    return t
+
+
 def swap_palette(surf, old_color, new_color):
     # TODO: perhaps rewrite with transparency
     old_color = old_color[:3]
@@ -481,7 +505,10 @@ def hide_cursor():
     pygame.mouse.set_visible(False)
 
 
-# decorator functions
+def average_z(vertices):
+    return sum(v[2] for v in vertices) / len(vertices)
+
+
 def get_binary_cursor(string, hotspot=(0, 0), black="x", white="-", xor=".", img=None):
     if img is None:
         size = (len(string[0]), len(string))
@@ -492,6 +519,7 @@ def get_binary_cursor(string, hotspot=(0, 0), black="x", white="-", xor=".", img
     return cursor
 
 
+# decorator functions
 def loading(func, window, font, exit_command=None):
     class T:
         def __init__(self):
@@ -507,10 +535,6 @@ def loading(func, window, font, exit_command=None):
         to.t = start_thread(func, args=args, kwargs=kwargs)
         start_thread(load)
     return wrapper
-
-
-# post-function constants
-bar_rgb = (lerp(RED, ORANGE, 34) + lerp(ORANGE, YELLOW, 33) + lerp(YELLOW, LIGHT_GREEN, 34))
 
 
 # classes
@@ -540,11 +564,13 @@ class FillOptions(Enum):
 
 
 class Crystal(Lerper):
-    def __init__(self, renderer, vertices, point_colors, connections, fills, origin, mult, radius, xa=0, ya=0, za=0, xav=0, yav=0, zav=0, rotate=True, fill_as_connections=False, normals=False, normalize=False, textures=None, backface_culling=True, speed=None, hwaccel=False, **kwargs):
+    def __init__(self, renderer, vertices, point_colors, connections, fills, origin, mult, radius, xa=0, ya=0, za=0, xav=0, yav=0, zav=0, rotate=True, normals=False, normalize=False, mtl_file=None, backface_culling=True, speed=None, hwaccel=False, **kwargs):
         super().__init__(speed, **kwargs)
         self.hwaccel = hwaccel
         self.renderer = renderer
         self.normalize = normalize
+        if mtl_file is not None:
+            self.load_mtl(mtl_file)
         if isinstance(vertices, list):
             self.vertices = array(vertices)
             self.point_colors = point_colors
@@ -555,29 +581,43 @@ class Crystal(Lerper):
             self.get_delaunay()
         self.normals = normals
         self.r = radius
-        # self.default_circle = Texture.from_surface(self.renderer, circle(5, RED))
         self.circle_textures = [Texture.from_surface(self.renderer, circle(self.r, color)) for color in self.point_colors]
         self.connections = connections
-        if False:
-            self.connections = [[YELLOW] + f[1:] for f in fills]
         self.oox, self.ooy = origin
         self.m = mult
         self.xa, self.ya, self.za = xa, ya, za
         self.xav, self.yav, self.zav = xav, yav, zav
         self.rotate = rotate
-        self.fill_as_connections = fill_as_connections
-        self.textures = textures if textures is not None else []
         self.backface_culling = backface_culling
         self.update_lerp = True
         self.update_steps = 0
-        # self.width = max([x[0] for x in self.vertices]) - min([x[0] for x in self.vertices]) * self.m
-        # self.height = max([x[1] for x in self.vertices]) - min([x[1] for x in self.vertices]) * self.m
-        # self.depth = max([x[2] for x in self.vertices]) - min([x[2] for x in self.vertices]) * self.m
+    
+    @property
+    def num_vertices(self):
+        return len(self.vertices)
 
     # crystal update
     def update(self):
         self.calculations()
         self.draw()
+    
+    def load_mtl(self, mtl_file):
+        self.mtl_file = mtl_file
+        self.materials = []
+        self.mtl_data = {}
+        with open(self.mtl_file, "r") as f:
+            for line in f.read().splitlines():
+                args = line.split(" ")
+                kw = args.pop(0)
+
+                if kw == "newmtl":
+                    current_mtl = args[0]
+                    self.mtl_data[current_mtl] = {}
+
+                elif kw == "Kd":
+                    r, g, b = args
+                    r, g, b = float(r) * 255, float(g) * 255, float(b) * 255
+                    self.mtl_data[current_mtl]["Kd"] = (r, g, b)
 
     def calculations(self):
         # if self.update_steps > 0:
@@ -597,8 +637,7 @@ class Crystal(Lerper):
             self.xa += self.xav
             self.ya += self.yav
             self.za += self.zav
-        # rounding angles for caching
-        # nuh uh
+
         xa, ya, za = self.xa, self.ya, self.za
         for index, vertex in enumerate(self.vertices):
             # rotate the matrices
@@ -612,6 +651,7 @@ class Crystal(Lerper):
             rect = pygame.Rect(x - self.r, y - self.r, self.r * 2, self.r * 2)
             self.points.append((x, y))
             self.circles.append([index, rect])
+            
         if self.normals:
             for index, vector in enumerate(self.vertex_normals):
                 # rotate the matrices
@@ -622,7 +662,7 @@ class Crystal(Lerper):
 
         # fills
         self.fill_vertices = [[fill[0], [self.updated_vertices[x] for x in fill[1]]] for fill in self.fills]
-        self.fill_vertices = sorted(self.fill_vertices, key=lambda x: average_z(x[1]))
+        self.fill_vertices = sorted(self.fill_vertices, key=lambda v: average_z(v[1]))
         self.fill_data = []
 
         for index, capsule in enumerate(self.fill_vertices):
@@ -630,12 +670,7 @@ class Crystal(Lerper):
             data = capsule[0]
             d = [data]
             vertices = capsule[1]
-            if self.backface_culling:
-                # xs = array([vertex[0] for vertex in vertices] + [vertices[0][0]])
-                # ys = array([vertex[1] for vertex in vertices] + [vertices[0][1]])
-                # # backface culling
-                # signed_area = shoelace(xs, ys)
-                # cond = signed_area = signed_area > 0
+            if self.backface_culling and False:
                 cond = polygon_orientation(vertices)
             else:
                 cond = True
@@ -650,33 +685,14 @@ class Crystal(Lerper):
                     d.append([x, y])
                 self.fill_data.append(d)
 
-        # textures
-        self.texture_vertices = [[self.updated_vertices[x] if isinstance(x, int) else x for x in data] for data in self.textures]
-        self.texture_data = []
-        for index, data in enumerate(self.texture_vertices):
-            color = data[0]
-            d = [color]
-            for vertex in data[1:]:
-                # project the matrices
-                pos = vertex.dot(orthogonal_projection_matrix)
-                x, y = self.m * pos[0] + self.oox, self.m * pos[1] + self.ooy
-                rect = pygame.Rect(x - self.r, y - self.r, self.r * 2, self.r * 2)
-                # self.renderer.blit(self.default_circle, rect)
-                d.append([x, y])
-            self.texture_data.append(d)
-
     # crystal draw
     def draw(self):
-        for data in self.fill_data:
-            if self.fill_as_connections and False:
-                self.connect_points(*data, index=False)
-            else:
-                self.fill_points(*data)
-        for data in self.texture_data:
-            # self.map_texture(*data)
-            pass
+        for index, data in enumerate(self.fill_data):
+            self.fill_points(*data)
+                
         for connection in self.connections:
             self.connect_points(*connection)
+
         for circle in self.circles:
             with suppress(IndexError):
                 self.draw_circle(*circle)
@@ -714,12 +730,15 @@ class Crystal(Lerper):
             surf = False
         # normals
         if self.normals:
-            normal_index = data[2] if 2 < len(data) else False
+            normal_index = data[2]
             normal = self.updated_normals[normal_index]
             vec = pygame.math.Vector3(list(normal))
             camera = pygame.math.Vector3(0, 0, 1)
             dot = vec.dot(camera)
-            fill_color = [0] + [int((dot + 1) / 2 * 255)] + [0, 255]
+            if dot < 0:
+                return
+            light_value = (dot + 1) / 2
+            fill_color = rgb_mult(fill_color, light_value)
         # filling
         if surf:
             surf, rect = warp(surf, points)
@@ -738,7 +757,6 @@ class Crystal(Lerper):
                 draw_quad(self.renderer, outline_color, *points)
         else:
             return
-            raise ValueError(f"Invalid number of vertices: {len(points)}")
 
         # draw the normals (debug)
         if self.normals:
@@ -749,7 +767,7 @@ class Crystal(Lerper):
             pos = farther.dot(orthogonal_projection_matrix)
             x, y = 200 * pos[0] + self.oox, 200 * pos[1] + self.ooy
             rect = pygame.Rect(x - self.r, y - self.r, self.r * 3, self.r * 3)
-            draw_line(self.renderer, fill_color, orect.topleft, rect.topleft)
+            # draw_line(self.renderer, fill_color, orect.topleft, rect.topleft)
 
     def map_texture(self, data, *points):
         surf = data[0]
@@ -763,6 +781,9 @@ class Crystal(Lerper):
         self.vertex_normals = []
         self.updated_normals = []
         min_ = max_ = 0
+
+        current_mtl = None
+
         with open(p) as f:
             for line in f.readlines():
                 if line.startswith("#"):
@@ -770,8 +791,8 @@ class Crystal(Lerper):
 
                 line = re.sub(r"\s*#.*$", "", line)
                 split = line.split(" ")
-
                 i = split[0]
+
                 # vector
                 if i == "v":
                     vertex = [float(x) for x in split[1:] if x]
@@ -783,6 +804,7 @@ class Crystal(Lerper):
                         if abs(x) > max_:
                             max_ = x
                     self.vertices.append(vertex)
+
                 # face
                 elif i == "f":
                     face = []
@@ -794,18 +816,30 @@ class Crystal(Lerper):
                         else:
                             vertex, uv, normal = [int(x) - 1 for x in data.split("/")]
                         face[-1].append(vertex)
-                    face.insert(0, [[rand(0, 255) for _ in range(3)] + [255], False, normal])
-                    if len(face) <= 5:
+                    if current_mtl is None:
+                        face.insert(0, [[rand(0, 255) for _ in range(3)] + [255], False, normal])
+                    else:
+                        face.insert(0, [rgb_mult(self.mtl_data[current_mtl]["Kd"], randf(1, 1)), False, normal])
+                    if len(face) <= 5:  # why?
                         self.fills.append(face)
+                    
+                    # if current_mtl is not None:
+                    #     self.materials.append(current_mtl.rstrip("\n"))
+
                 # vector normals
                 elif i == "vn":
                     normal_coords = [float(x) for x in split[1:]]
                     self.vertex_normals.append(normal_coords)
+
+                elif i == "usemtl":
+                    current_mtl = split[1].rstrip("\n")
+
         self.vertex_normals = array(self.vertex_normals)
         # self.point_colors = [(255, 0, 0, 255)] * len(self.vertices)
         self.point_colors = []
+
         if self.normalize:
-            self.vertices = [[x / max_ for x in vertex] for vertex in self.vertices]
+            self.vertices = [[x / max(abs(min_), abs(max_)) for x in vertex] for vertex in self.vertices]
         
         self.vertices = array(self.vertices)
 
