@@ -7,13 +7,11 @@ import io
 import random
 import platform
 import time
-import requests
 import string
 import json
 import inspect
 import subprocess
 import wave
-from line_profiler import LineProfiler
 
 
 # constants
@@ -38,7 +36,7 @@ prinit = print
 prinnt = print
 priinit = print
 prnit = print
-print = print   # I'm gonna move to a rural farm to be a blacksmith for the rest of my life if I mispell print in yet anoother different fashon I stg
+print = print   # I'm gonna move to a rural farm to be a blacksmith duck egg farmer for the rest of my life if I mispell print again istg
 print = print
 
 epoch = time.time
@@ -194,10 +192,6 @@ def correct(word, words):
 
 def test(text="", mu=500, sigma=10):
     pritn(f"{text} {nordis(mu, sigma)}")
-
-
-def req2dict(url):
-    return json.loads(requests.get(url).text)
 
 
 def cform(str_):
@@ -409,16 +403,6 @@ def merge(*funcs):
             func()
 
     return wrapper
-
-
-profiler = LineProfiler()
-def profile(func):
-    def inner(*args, **kwargs):
-        profiler.add_function(func)
-        profiler.enable_by_count()
-        return func(*args, **kwargs)
-
-    return inner
 
 
 # classes

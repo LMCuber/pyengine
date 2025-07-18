@@ -1,4 +1,4 @@
-Metadata-Version: 2.1
+Metadata-Version: 2.4
 Name: pyengine
 Version: 0.1
 Summary: Useful Python stuff
@@ -6,3 +6,8 @@ Home-page: https://github.com/LMCuber/pyengine
 Author: Leo Bozkir
 Author-email: leo.bozkir@outlook.com
 License: MIT
+Dynamic: author
+Dynamic: author-email
+Dynamic: home-page
+Dynamic: license
+Dynamic: summary
