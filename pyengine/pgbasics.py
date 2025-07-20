@@ -101,6 +101,12 @@ class SurfaceBuilder:
     def __init__(self, *args, **kwargs):
         self.surf = pygame.Surface(*args, **kwargs)
     
+    @classmethod
+    def from_image(cls, img):
+        self = cls()
+        self.surf = img
+        return self
+    
     def fill(self, *args, **kwargs):
         self.surf.fill(*args, **kwargs)
         return self

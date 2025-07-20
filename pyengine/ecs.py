@@ -70,11 +70,12 @@ def get_components(*comp_types, chunks=(None,)):
     for chunk in chunks:
         try:
             # try to get the components from cache if no new entities were added
-            return _cm.cache[(comp_types, chunk)]
+            comps = _cm.cache[(comp_types, chunk)]
         except KeyError:
             # there was a cache flush so have to query again. Saves to cache and returns.
-            return _cm.cache.setdefault((comp_types, chunk), list(_get_components(*comp_types, chunk=chunk)))
-
+            comps = _cm.cache.setdefault((comp_types, chunk), list(_get_components(*comp_types, chunk=chunk)))
+        yield from comps
+    
 
 def _get_components(*comp_types, chunk):
     """
