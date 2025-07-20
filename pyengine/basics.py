@@ -1,4 +1,3 @@
-from .imports import *
 import operator as op
 import inspect
 import sys
@@ -12,45 +11,15 @@ import json
 import inspect
 import subprocess
 import wave
-
-
-# constants
-char_mods = {"a": "áàâãä",
-             "e": "éèêë",
-             "i": "íìîï",
-             "o": "óòôõö",
-             "u": "úùûü"}
-phi = (1 + sqrt(5)) / 2
-int_to_word = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"]
-
-# take a moment to appeciate this beuaty
-print = print
-pritn = print
-prrint = print
-pirnt = print
-PRINT = print 
-pint = print 
-ptrint = print
-priint = print
-prinit = print
-prinnt = print
-priinit = print
-prnit = print
-print = print   # I'm gonna move to a rural farm to be a blacksmith duck egg farmer for the rest of my life if I mispell print again istg
-print = print
-
-epoch = time.time
-lambda_none = lambda *a, **kwa: None
-lambda_ret = lambda x: x
-funny_words = {"lmao", "lmoa", "lol", "lol get rekt"}
-gf_combo_names = ["super", "power", "ninja", "turbo", "neo", "ultra", "hyper", "mega", "multi", "alpha", "meta", "extra", "uber", "prefix"]
-steel_colors = []
-k_b = 1.380649 * 10 ** -23
-n_a = 6.02214076 * 10 ** 23
-gas_constant = k_b * n_a
+#
+from .imports import *
 
 
 # functions
+pritn = print
+lambda_none = lambda: None
+
+
 def delay(func, secs, *args, **kwargs):
     def inner():
         sleep(secs)
@@ -204,21 +173,6 @@ def cform(str_):
         else:
             ret += char
     return ret
-
-
-def get_clipboard():
-    if Platform.os == "windows":
-        return tkinter.Tk().clipboard_get()
-    elif Platform.os == "darwin":
-        return pd_clipboard_get()
-
-
-def find(iter, cond, default=None):
-    return next((x for x in iter if cond(x)), default)
-
-
-def findi(iter, cond, default=None):
-    return next((i for i, x in enumerate(iter) if cond(x)), default)
 
 
 def flatten(oglist):

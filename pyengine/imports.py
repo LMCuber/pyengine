@@ -10,6 +10,7 @@ from functools import partial
 from threading import Thread
 from warnings import warn
 from pprint import pprint
+from pathlib import Path
 import PIL.ImageFilter
 from enum import Enum
 import threading

@@ -1,6 +1,3 @@
-from .imports import *
-from .basics import *
-from .pilbasics import pil_to_pg
 import pygame
 from pygame.time import get_ticks as ticks
 import pymunk
@@ -15,6 +12,10 @@ from colorsys import rgb_to_hsv, hsv_to_rgb, rgb_to_hls, hls_to_rgb
 import cv2
 from scipy.spatial import Delaunay
 from dataclasses import dataclass
+#
+from .imports import *
+from .basics import *
+from .pilbasics import pil_to_pg
 
 
 pygame.init()
@@ -83,63 +84,145 @@ orthogonal_projection_matrix = array([
 resolutions = [(640 * m, 360 * m) for m in range(1, 6)]
 
 
-# RENDERING FUNCTIONS
-def draw_line(ren, color, p1, p2):
-    ren.draw_color = color
-    ren.draw_line(p1, p2)
+# CPU definitions (can be overwritten later)
+def fill_display(display, color):
+    display.fill(color)
 
 
-def draw_rect(ren, color, rect):
-    ren.draw_color = color
-    ren.draw_rect(rect)
+draw_line = pygame.draw.line
+draw_rect = pygame.draw.rect
+draw_quad = pygame.draw.polygon
+fill_quad = pygame.draw.polygon
+draw_triangle = pygame.draw.polygon
+fill_triangle = pygame.draw.polygon
 
 
-def fill_rect(ren, color, rect):
-    ren.draw_color = color
-    ren.fill_rect(rect)
+class SurfaceBuilder:
+    def __init__(self, *args, **kwargs):
+        self.surf = pygame.Surface(*args, **kwargs)
+    
+    def fill(self, *args, **kwargs):
+        self.surf.fill(*args, **kwargs)
+        return self
+    
+    def set_alpha(self, *args, **kwargs):
+        self.surf.set_alpha(*args, **kwargs)
+        return self
+    
+    def build(self):
+        return self.surf
 
 
-def draw_quad(ren, color, p1, p2, p3, p4):
-    ren.draw_color = color
-    ren.draw_quad(p1, p2, p3, p4)
-
-
-def fill_quad(ren, color, p1, p2, p3, p4):
-    ren.draw_color = color
-    ren.fill_quad(p1, p2, p3, p4)
-
-
-def draw_triangle(ren, color, p1, p2, p3):
-    ren.draw_color = color
-    ren.draw_triangle(p1, p2, p3)
-
-
-def fill_triangle(ren, color, p1, p2, p3):
-    ren.draw_color = color
-    ren.fill_triangle(p1, p2, p3)
-
-
-class Global:
+class _Global:
     def __init__(self):
+        self.hwaccel = False
+        self.renderer = None
+        self.text_cache: dict[tuple[str, pygame.Font, int], tuple[Texture, pygame.Rect]] = {}  # (text, font, color) -> {texture, rect}
+
+    def enable_gpu(self, ren):
+        global draw_line, draw_rect, draw_quad, fill_quad, draw_triangle, fill_triangle
+        global fill_display, T, subsurface, imgload, write
+        
+        self.renderer = ren
+
+        def draw_line(ren, color, p1, p2):
+            ren.draw_color = color
+            ren.draw_line(p1, p2)
+
+        def draw_rect(ren, color, rect, *args):
+            ren.draw_color = color
+            ren.draw_rect(rect)
+
+        def fill_rect(ren, color, rect):
+            ren.draw_color = color
+            ren.fill_rect(rect)
+
+        def draw_quad(ren, color, p1, p2, p3, p4):
+            ren.draw_color = color
+            ren.draw_quad(p1, p2, p3, p4)
+
+        def fill_quad(ren, color, p1, p2, p3, p4):
+            ren.draw_color = color
+            ren.fill_quad(p1, p2, p3, p4)
+
+        def draw_triangle(ren, color, p1, p2, p3):
+            ren.draw_color = color
+            ren.draw_triangle(p1, p2, p3)
+
+        def fill_triangle(ren, color, p1, p2, p3):
+            ren.draw_color = color
+            ren.fill_triangle(p1, p2, p3)
+
+        def fill_display(ren, color):
+            ren.draw_color = color
+            ren.clear()
+        
+        def build(self):
+            return Texture.from_surface(_glob.renderer, self.surf)
+    
+        SurfaceBuilder.build = build
+
+        def T(*args, **kwargs):
+            return Texture.from_surface(_glob.renderer, *args, **kwargs)
+    
+        def subsurface(surf, *args, **kwargs):
+            return T(surf.subsurace(*args, **kwargs))
+    
+        def imgload(*path, scale=1, frames=None):
+            img = pygame.image.load(Path(*path))
+            if frames is None:
+                return T(pygame.transform.scale_by(img, scale))
+            elif frames == 1:
+                return [T(pygame.transform.scale_by(img, scale))]
+            else:
+                imgs = []
+                w, h = img.width / frames, img.height
+                for x in range(frames):
+                    imgs.append(T(pygame.transform.scale_by(img.subsurface(x * w, 0, w, h), scale)))
+                return imgs
+    
+        def write(surf, anchor, text, font, color, x, y, alpha=255, blit=True, border=None, special_flags=0, tex=False, ignore=True):
+            try:
+                text_tex, text_rect = _glob.text_cache[(text, font, color)]
+                setattr(text_rect, anchor, (int(x), int(y)))
+                if blit:
+                    surf.blit(text_tex, text_rect, special_flags=special_flags)
+                return text_tex, text_rect
+            
+            except KeyError:
+                if ignore:
+                    # return
+                    pass
+                if border is not None:
+                    bc, bw = border, 1
+                    write(surf, anchor, text, font, bc, x - bw, y - bw, special_flags=special_flags),
+                    write(surf, anchor, text, font, bc, x + bw, y - bw, special_flags=special_flags),
+                    write(surf, anchor, text, font, bc, x - bw, y + bw, special_flags=special_flags),
+                    write(surf, anchor, text, font, bc, x + bw, y + bw, special_flags=special_flags)
+
+                text_surf = font.render(str(text), True, color)
+                if tex:
+                    text_surf = Texture.from_surface(surf, text)
+                    text_surf.alpha = alpha
+                else:
+                    text_surf.set_alpha(alpha)
+                text_tex = T(text_surf)
+                text_rect = text_surf.get_rect()
+
+                setattr(text_rect, anchor, (int(x), int(y)))
+                if blit:
+                    surf.blit(text_tex, text_rect, special_flags=special_flags)
+
+                return _glob.text_cache.setdefault((text, font, color), (text_tex, text_rect))
+            
         self.hwaccel = True
 
-    def disable_hwaccel(self):
-        global draw_line, draw_rect, draw_quad, fill_quad, draw_triangle, fill_triangle, draw_line
-        
-        def draw_quad(ren, color, p1, p2, p3, p4): pygame.draw.polygon(ren, color, (p1, p2, p3, p4), 1)
-        def fill_quad(ren, color, p1, p2, p3, p4): pygame.draw.polygon(ren, color, (p1, p2, p3, p4))
-        def draw_triangle(ren, color, p1, p2, p3): pygame.draw.polygon(ren, color, (p1, p2, p3), 1)
-        def fill_triangle(ren, color, p1, p2, p3): pygame.draw.polygon(ren, color, (p1, p2, p3))
-        def draw_line(ren, color, p1, p2):         pygame.draw.line(ren, color, p1, p2)
 
-        self.hwaccel = False
-
-_glob = Global()
+_glob = _Global()
 
 
-def set_pyengine_hwaccel(tof):
-    if not tof:
-        _glob.disable_hwaccel()
+def set_pyengine_gpu(ren):
+    _glob.enable_gpu(ren)
 
 
 def warp(surf: pygame.Surface,
@@ -406,48 +489,48 @@ def center_window():
     os.environ["SDL_VIDEO_CENTERED"] = "1"
 
 
-def imgload(*path_, after_func="convert_alpha", colorkey=None, frames=None, whitespace=0, frame_pause=0, end_frame=None, scale=1, rotation=0):
+def imgload(*path, scale=1, frames=None):
+    img = pygame.image.load(Path(*path))
     if frames is None:
-        ret = pygame.image.load(path(*path_))
+        return pygame.transform.scale_by(img, scale)
+    elif frames == 1:
+        return [pygame.transform.scale_by(img, scale)]
     else:
-        ret = []
-        img = pygame.image.load(path(*path_))
-        frames = (frames, img.get_width() / frames)
-        for i in range(frames[0]):
-            ret.append(img.subsurface(i * frames[1], 0, frames[1] - whitespace, img.get_height()))
-        for i in range(frame_pause):
-            ret.append(ret[0])
-        if end_frame is not None:
-            ret.append(ret[end_frame])
-    if isinstance(ret, list):
-        for i, r in enumerate(ret):
-            ret[i] = rotate(pygame.transform.scale_by(getattr(r, after_func)() if after_func is not None else r, scale), rotation)
-    elif isinstance(ret, pygame.Surface):
-        ret = rotate(pygame.transform.scale_by(getattr(ret, after_func)() if after_func is not None else ret, scale), rotation)
-    return ret
+        imgs = []
+        w, h = img.width / frames, img.height
+        for x in range(frames):
+            imgs.append(pygame.transform.scale_by(img.subsurface(x * w, 0, w, h), scale))
+        return imgs
+
+
+def subsurface(surf, *args, **kwargs):
+    return surf.subsurface(*args, **kwargs)
 
 
 def write(surf, anchor, text, font, color, x, y, alpha=255, blit=True, border=None, special_flags=0, tex=False, ignore=True):
-    if ignore:
-        # return
-        pass
-    if border is not None:
-        bc, bw = border, 1
-        write(surf, anchor, text, font, bc, x - bw, y - bw, special_flags=special_flags),
-        write(surf, anchor, text, font, bc, x + bw, y - bw, special_flags=special_flags),
-        write(surf, anchor, text, font, bc, x - bw, y + bw, special_flags=special_flags),
-        write(surf, anchor, text, font, bc, x + bw, y + bw, special_flags=special_flags)
-    text = font.render(str(text), True, color)
-    if tex:
-        text = Texture.from_surface(surf, text)
-        text.alpha = alpha
-    else:
-        text.set_alpha(alpha)
-    text_rect = text.get_rect()
-    setattr(text_rect, anchor, (int(x), int(y)))
-    if blit:
-        surf.blit(text, text_rect, special_flags=special_flags)
-    return text, text_rect
+    try:
+        return _glob.text_cache[(text, font, color)]
+    except KeyError:
+        if ignore:
+            # return
+            pass
+        if border is not None:
+            bc, bw = border, 1
+            write(surf, anchor, text, font, bc, x - bw, y - bw, special_flags=special_flags),
+            write(surf, anchor, text, font, bc, x + bw, y - bw, special_flags=special_flags),
+            write(surf, anchor, text, font, bc, x - bw, y + bw, special_flags=special_flags),
+            write(surf, anchor, text, font, bc, x + bw, y + bw, special_flags=special_flags)
+        text = font.render(str(text), True, color)
+        if tex:
+            text = Texture.from_surface(surf, text)
+            text.alpha = alpha
+        else:
+            text.set_alpha(alpha)
+        text_rect = text.get_rect()
+        setattr(text_rect, anchor, (int(x), int(y)))
+        if blit:
+            surf.blit(text, text_rect, special_flags=special_flags)
+        return _glob.text_cache.setdefault((text, font, color), (text, text_rect))
 
 
 def pg_to_pil(pg_img):
@@ -968,6 +1051,11 @@ K_CONTROL = _Control()
 K_OPTION = _Option()
 K_COMMAND = _Command()
 K_OSC = _OsC()
+
+
+# CPU rendering
+def T(x):
+    return x
 
 
 class SmartSurface(pygame.Surface):
