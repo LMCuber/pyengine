@@ -91,11 +91,20 @@ def fill_display(display, color):
 
 draw_line = pygame.draw.line
 draw_rect = pygame.draw.rect
+fill_rect = pygame.draw.rect
 draw_quad = pygame.draw.polygon
 fill_quad = pygame.draw.polygon
 draw_triangle = pygame.draw.polygon
 fill_triangle = pygame.draw.polygon
 
+
+def flip_x(surf):
+    return pygame.transform.flip(surf, True, False)
+
+
+def scale_by(surf, mult):
+    return T(pygame.transform.scale_by(surf, mult))
+            
 
 class SurfaceBuilder:
     def __init__(self, *args, **kwargs):
@@ -117,7 +126,7 @@ class SurfaceBuilder:
     
     def build(self):
         return self.surf
-
+    
 
 class _Global:
     def __init__(self):
@@ -126,8 +135,9 @@ class _Global:
         self.text_cache: dict[tuple[str, pygame.Font, int], tuple[Texture, pygame.Rect]] = {}  # (text, font, color) -> {texture, rect}
 
     def enable_gpu(self, ren):
-        global draw_line, draw_rect, draw_quad, fill_quad, draw_triangle, fill_triangle
+        global draw_line, draw_rect, fill_rect, draw_quad, fill_quad, draw_triangle, fill_triangle
         global fill_display, T, subsurface, imgload, write
+        global flip_x
         
         self.renderer = ren
 
@@ -140,8 +150,10 @@ class _Global:
             ren.draw_rect(rect)
 
         def fill_rect(ren, color, rect):
+            ren.draw_blend_mode = 1
             ren.draw_color = color
             ren.fill_rect(rect)
+            ren.draw_blend_mode = 0
 
         def draw_quad(ren, color, p1, p2, p3, p4):
             ren.draw_color = color
@@ -220,7 +232,12 @@ class _Global:
                     surf.blit(text_tex, text_rect, special_flags=special_flags)
 
                 return _glob.text_cache.setdefault((text, font, color), (text_tex, text_rect))
-            
+    
+        def flip_x(tex):
+            img = Image(tex)
+            img.flip_x = True
+            return img
+
         self.hwaccel = True
 
 
