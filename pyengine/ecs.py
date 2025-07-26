@@ -40,6 +40,10 @@ def create_entity(*comp_objects, chunk=None):
 
 
 def delete_entity(ent_id, chunk):
+    # if off-by-one error (especially when nested iterations), do nothing, entity has probabel already been removed
+    if ent_id not in _em.entities:
+        return
+
     for comp_type in _em.entities[ent_id]:
         # for each component entity was part of, entity id gets removed from the component list
         _cm.components[chunk][comp_type].discard(ent_id)
