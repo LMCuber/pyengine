@@ -91,11 +91,13 @@ def fill_display(display, color):
 
 draw_line = pygame.draw.line
 draw_rect = pygame.draw.rect
+draw_aacircle = pygame.draw.aacircle
 fill_rect = pygame.draw.rect
 draw_quad = pygame.draw.polygon
 fill_quad = pygame.draw.polygon
 draw_triangle = pygame.draw.polygon
 fill_triangle = pygame.draw.polygon
+rotate_ip = lambda_none
 
 
 def flip_x(surf):
@@ -104,7 +106,17 @@ def flip_x(surf):
 
 def scale_by(surf, mult):
     return T(pygame.transform.scale_by(surf, mult))
-            
+
+
+class CImage(Image):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.width = self.texture.width
+        self.height = self.texture.height
+
+    def get_rect(self, *args, **kwargs):
+        return Texture.get_rect(self.texture, *args, **kwargs)
+
 
 class SurfaceBuilder:
     def __init__(self, *args, **kwargs):
@@ -137,7 +149,7 @@ class _Global:
     def enable_gpu(self, ren):
         global draw_line, draw_rect, fill_rect, draw_quad, fill_quad, draw_triangle, fill_triangle
         global fill_display, T, subsurface, imgload, write
-        global flip_x
+        global flip_x, rotate_ip
         
         self.renderer = ren
 
@@ -163,7 +175,7 @@ class _Global:
             ren.draw_color = color
             ren.fill_quad(p1, p2, p3, p4)
 
-        def draw_triangle(ren, color, p1, p2, p3):
+        def draw_triplangle(ren, color, p1, p2, p3):
             ren.draw_color = color
             ren.draw_triangle(p1, p2, p3)
 
@@ -176,12 +188,12 @@ class _Global:
             ren.clear()
         
         def build(self):
-            return Texture.from_surface(_glob.renderer, self.surf)
+            return CImage(Texture.from_surface(_glob.renderer, self.surf))
     
         SurfaceBuilder.build = build
 
         def T(*args, **kwargs):
-            return Texture.from_surface(_glob.renderer, *args, **kwargs)
+            return CImage(Texture.from_surface(_glob.renderer, *args, **kwargs))
     
         def subsurface(surf, *args, **kwargs):
             return T(surf.subsurace(*args, **kwargs))
@@ -237,6 +249,9 @@ class _Global:
             img = Image(tex)
             img.flip_x = True
             return img
+    
+        def rotate_ip(img: Image, angle):
+            img.angle = angle
 
         self.hwaccel = True
 
@@ -812,7 +827,6 @@ class Crystal(Lerper):
             for fill in self.fills:
                 str_fill = f"f {' '.join(str(x + 1) + '/1/1' for x in fill[1:])}\n"
                 f.write(str_fill)
-
 
     def draw_circle(self, i, rect):
         self.renderer.blit(self.circle_textures[i], rect)
